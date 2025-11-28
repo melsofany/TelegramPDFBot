@@ -7,8 +7,7 @@ import { sendTelegramDocumentTool } from "../tools/sendTelegramDocumentTool";
 import { createOpenAI } from "@ai-sdk/openai";
 
 const openai = createOpenAI({
-  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
+  apiKey: process.env.OPENAI_API_KEY,
 });
 
 export const electoralAgent = new Agent({

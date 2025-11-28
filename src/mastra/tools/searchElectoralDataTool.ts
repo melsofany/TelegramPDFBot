@@ -2,8 +2,6 @@ import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 import * as fs from "fs";
 import * as path from "path";
-// @ts-ignore
-import pdfParse from "pdf-parse";
 
 const PDF_FILES: Record<string, string> = {
   "مركز طما": "attached_assets/‎⁨مركز طما⁩_1764329849045.pdf",
@@ -33,6 +31,7 @@ async function extractDataFromPDF(pdfPath: string): Promise<string> {
       return "";
     }
     const dataBuffer = fs.readFileSync(pdfPath);
+    const pdfParse = (await import("pdf-parse")).default;
     const data = await pdfParse(dataBuffer);
     return data.text;
   } catch (error) {
