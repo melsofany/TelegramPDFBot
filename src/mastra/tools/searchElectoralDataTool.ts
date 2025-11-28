@@ -31,7 +31,8 @@ async function extractDataFromPDF(pdfPath: string): Promise<string> {
       return "";
     }
     const dataBuffer = fs.readFileSync(pdfPath);
-    const pdfParse = (await import("pdf-parse")).default;
+    const pdfParseModule = await import("pdf-parse");
+    const pdfParse = pdfParseModule.default || pdfParseModule;
     const data = await pdfParse(dataBuffer);
     return data.text;
   } catch (error) {
