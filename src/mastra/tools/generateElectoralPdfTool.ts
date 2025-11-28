@@ -1,9 +1,15 @@
 import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
-import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
+import { PDFDocument, rgb } from "pdf-lib";
 import fontkit from "@pdf-lib/fontkit";
 import * as fs from "fs";
 import * as path from "path";
+// @ts-ignore
+import ArabicReshaper from "arabic-reshaper";
+// @ts-ignore
+import bidiFactory from "bidi-js";
+
+const bidi = bidiFactory();
 
 interface ElectoralInquiryData {
   nationalId: string;
@@ -28,6 +34,24 @@ function getRandomDate(): string {
   return `11/${randomDay}/25, ${hours}:${minutes.toString().padStart(2, '0')} ${ampm}`;
 }
 
+function processArabicText(text: string): string {
+  if (!text) return '';
+  
+  const hasArabic = /[\u0600-\u06FF]/.test(text);
+  if (!hasArabic) return text;
+  
+  try {
+    const reshaped = ArabicReshaper.reshape(text);
+    const reordered = bidi.getReorderedString(reshaped, { 
+      direction: 'rtl' 
+    });
+    return reordered;
+  } catch (error) {
+    console.warn('Error processing Arabic text, using fallback:', error);
+    return text.split('').reverse().join('');
+  }
+}
+
 export async function generateElectoralInquiryPdf(data: ElectoralInquiryData): Promise<{
   success: boolean;
   pdfPath: string;
@@ -38,18 +62,35 @@ export async function generateElectoralInquiryPdf(data: ElectoralInquiryData): P
     const pdfDoc = await PDFDocument.create();
     pdfDoc.registerFontkit(fontkit);
     
+    const fontPath = path.join(process.cwd(), 'fonts', 'Amiri-Regular.ttf');
+    const boldFontPath = path.join(process.cwd(), 'fonts', 'Amiri-Bold.ttf');
+    
+    let fontBytes: Buffer;
+    let boldFontBytes: Buffer;
+    
+    try {
+      fontBytes = fs.readFileSync(fontPath);
+      boldFontBytes = fs.readFileSync(boldFontPath);
+    } catch (fontError) {
+      console.error("Font files not found, trying alternative path...");
+      const altFontPath = path.join('/home/runner/workspace', 'fonts', 'Amiri-Regular.ttf');
+      const altBoldFontPath = path.join('/home/runner/workspace', 'fonts', 'Amiri-Bold.ttf');
+      fontBytes = fs.readFileSync(altFontPath);
+      boldFontBytes = fs.readFileSync(altBoldFontPath);
+    }
+    
+    const arabicFont = await pdfDoc.embedFont(fontBytes);
+    const arabicBoldFont = await pdfDoc.embedFont(boldFontBytes);
+    
     const page = pdfDoc.addPage([595.28, 841.89]);
     const { width, height } = page.getSize();
-    
-    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-    const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
     const randomDate = getRandomDate();
     page.drawText(randomDate, {
       x: 30,
       y: height - 30,
       size: 10,
-      font: font,
+      font: arabicFont,
       color: rgb(0.3, 0.3, 0.3),
     });
 
@@ -57,16 +98,17 @@ export async function generateElectoralInquiryPdf(data: ElectoralInquiryData): P
       x: width - 40,
       y: 30,
       size: 10,
-      font: font,
+      font: arabicFont,
       color: rgb(0.3, 0.3, 0.3),
     });
 
-    const headerY = height - 60;
-    page.drawText("ةيباختنلاا ناجللا نع ملاعتسلاا ةمدخ", {
-      x: width / 2 - 100,
-      y: headerY,
-      size: 12,
-      font: font,
+    const headerText = processArabicText("خدمة الاستعلام عن اللجان الانتخابية");
+    const headerWidth = arabicFont.widthOfTextAtSize(headerText, 14);
+    page.drawText(headerText, {
+      x: (width - headerWidth) / 2,
+      y: height - 60,
+      size: 14,
+      font: arabicFont,
       color: rgb(0.3, 0.3, 0.3),
     });
 
@@ -81,61 +123,68 @@ export async function generateElectoralInquiryPdf(data: ElectoralInquiryData): P
       borderWidth: 1,
     });
 
-    const nationalIdDisplay = `(${data.nationalId})`;
-    page.drawText(`باختنلاا قح هل ${nationalIdDisplay} يموقلا مقرلا`, {
-      x: width / 2 - 80,
-      y: greenBoxY - 18,
-      size: 11,
-      font: font,
+    const nationalIdPart1 = processArabicText("الرقم القومي");
+    const nationalIdPart2 = `(${data.nationalId})`;
+    const nationalIdPart3 = processArabicText("له حق الانتخاب");
+    
+    const fullNationalIdText = `${nationalIdPart3} ${nationalIdPart2} ${nationalIdPart1}`;
+    const nationalIdWidth = arabicFont.widthOfTextAtSize(fullNationalIdText, 12);
+    page.drawText(fullNationalIdText, {
+      x: (width - nationalIdWidth) / 2,
+      y: greenBoxY - 15,
+      size: 12,
+      font: arabicFont,
       color: rgb(0.2, 0.5, 0.2),
     });
 
     const tableStartY = greenBoxY - 80;
     const tableWidth = width - 80;
     const tableX = 40;
+    const headerHeight = 35;
     const rowHeight = 35;
     const numRows = 10;
-    const tableHeight = rowHeight * numRows + 40;
+    const tableHeight = rowHeight * numRows + headerHeight;
 
     page.drawRectangle({
       x: tableX,
-      y: tableStartY - tableHeight + 40,
+      y: tableStartY - headerHeight,
       width: tableWidth,
-      height: 35,
+      height: headerHeight,
       color: rgb(0.2, 0.4, 0.7),
     });
 
-    page.drawText("ةيباختنلاا ةنجللا تانايب", {
-      x: tableX + tableWidth / 2 - 60,
-      y: tableStartY + 8,
+    const tableHeaderText = processArabicText("بيانات اللجنة الانتخابية");
+    const tableHeaderWidth = arabicBoldFont.widthOfTextAtSize(tableHeaderText, 14);
+    page.drawText(tableHeaderText, {
+      x: tableX + (tableWidth - tableHeaderWidth) / 2,
+      y: tableStartY - 25,
       size: 14,
-      font: boldFont,
+      font: arabicBoldFont,
       color: rgb(1, 1, 1),
     });
 
     const tableData = [
-      { label: ":يباختنلاا كزكرم", value: data.pollingStation },
-      { label: ":ةظفاحملا", value: data.governorate },
-      { label: ":زكرملا", value: data.center },
-      { label: ":ناونعلا", value: data.address },
-      { label: ":ةيعرفلا ةنجللا مقر", value: data.subcommitteeNumber },
-      { label: ":ةيباختنلاا فوشكلا يف كمقر", value: data.voterNumber },
-      { label: ":تيوصتلا خيرات", value: data.votingDate },
-      { label: ":روضحلا ةفاثك", value: data.attendanceDensity },
-      { label: ":يدرفلا ةرئاد", value: data.individualCircle },
-      { label: ":ةمئاقلا ةرئاد", value: data.listCircle },
+      { label: processArabicText("مركزك الانتخابي:"), value: processArabicText(data.pollingStation) },
+      { label: processArabicText("المحافظة:"), value: processArabicText(data.governorate) },
+      { label: processArabicText("المركز:"), value: processArabicText(data.center) },
+      { label: processArabicText("العنوان:"), value: processArabicText(data.address) },
+      { label: processArabicText("رقم اللجنة الفرعية:"), value: processArabicText(data.subcommitteeNumber) },
+      { label: processArabicText("رقمك في الكشوف الانتخابية:"), value: processArabicText(data.voterNumber) },
+      { label: processArabicText("تاريخ التصويت:"), value: processArabicText(data.votingDate) },
+      { label: processArabicText("كثافة الحضور:"), value: processArabicText(data.attendanceDensity) },
+      { label: processArabicText("دائرة الفردي:"), value: processArabicText(data.individualCircle) },
+      { label: processArabicText("دائرة القائمة:"), value: processArabicText(data.listCircle) },
     ];
 
-    const labelColWidth = 150;
-    const valueColWidth = tableWidth - labelColWidth;
+    const labelColWidth = 180;
 
     for (let i = 0; i < numRows; i++) {
-      const rowY = tableStartY - (i + 1) * rowHeight;
+      const rowY = tableStartY - headerHeight - (i + 1) * rowHeight;
       
       if (i % 2 === 1) {
         page.drawRectangle({
           x: tableX,
-          y: rowY - rowHeight + 10,
+          y: rowY,
           width: tableWidth,
           height: rowHeight,
           color: rgb(0.97, 0.97, 0.97),
@@ -143,32 +192,43 @@ export async function generateElectoralInquiryPdf(data: ElectoralInquiryData): P
       }
 
       page.drawLine({
-        start: { x: tableX, y: rowY - rowHeight + 10 },
-        end: { x: tableX + tableWidth, y: rowY - rowHeight + 10 },
+        start: { x: tableX, y: rowY },
+        end: { x: tableX + tableWidth, y: rowY },
         thickness: 0.5,
         color: rgb(0.8, 0.8, 0.8),
       });
 
-      page.drawText(tableData[i].label, {
-        x: tableX + tableWidth - labelColWidth + 10,
-        y: rowY - 18,
-        size: 10,
-        font: boldFont,
+      const labelText = tableData[i].label;
+      const labelWidth = arabicBoldFont.widthOfTextAtSize(labelText, 11);
+      page.drawText(labelText, {
+        x: tableX + tableWidth - labelWidth - 10,
+        y: rowY + 12,
+        size: 11,
+        font: arabicBoldFont,
         color: rgb(0.3, 0.3, 0.3),
       });
 
-      page.drawText(tableData[i].value, {
-        x: tableX + valueColWidth - 10 - (tableData[i].value.length * 4),
-        y: rowY - 18,
+      const valueText = tableData[i].value;
+      const valueWidth = arabicFont.widthOfTextAtSize(valueText, 10);
+      page.drawText(valueText, {
+        x: tableX + tableWidth - labelColWidth - valueWidth - 20,
+        y: rowY + 12,
         size: 10,
-        font: font,
+        font: arabicFont,
         color: rgb(0.2, 0.2, 0.2),
       });
     }
 
+    page.drawLine({
+      start: { x: tableX, y: tableStartY - headerHeight - numRows * rowHeight },
+      end: { x: tableX + tableWidth, y: tableStartY - headerHeight - numRows * rowHeight },
+      thickness: 0.5,
+      color: rgb(0.8, 0.8, 0.8),
+    });
+
     page.drawRectangle({
       x: tableX,
-      y: tableStartY - tableHeight + 10,
+      y: tableStartY - tableHeight,
       width: tableWidth,
       height: tableHeight,
       borderColor: rgb(0.7, 0.7, 0.7),
@@ -176,8 +236,8 @@ export async function generateElectoralInquiryPdf(data: ElectoralInquiryData): P
     });
 
     page.drawLine({
-      start: { x: tableX + tableWidth - labelColWidth, y: tableStartY },
-      end: { x: tableX + tableWidth - labelColWidth, y: tableStartY - tableHeight + 10 },
+      start: { x: tableX + tableWidth - labelColWidth, y: tableStartY - headerHeight },
+      end: { x: tableX + tableWidth - labelColWidth, y: tableStartY - tableHeight },
       thickness: 0.5,
       color: rgb(0.8, 0.8, 0.8),
     });
@@ -186,7 +246,7 @@ export async function generateElectoralInquiryPdf(data: ElectoralInquiryData): P
       x: 30,
       y: 50,
       size: 8,
-      font: font,
+      font: arabicFont,
       color: rgb(0.3, 0.3, 0.5),
     });
 
@@ -201,6 +261,8 @@ export async function generateElectoralInquiryPdf(data: ElectoralInquiryData): P
     const fileName = `electoral_${data.nationalId}_${Date.now()}.pdf`;
     const filePath = path.join(outputDir, fileName);
     fs.writeFileSync(filePath, pdfBytes);
+
+    console.log(`✅ [generateElectoralPdf] PDF created successfully: ${filePath}`);
 
     return {
       success: true,

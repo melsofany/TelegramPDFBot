@@ -35,6 +35,8 @@
     "@slack/web-api": "^7.9.3",
     "@types/pg": "^8.15.5",
     "ai": "^4.3.16",
+    "arabic-reshaper": "^1.1.0",
+    "bidi-js": "^1.0.3",
     "dotenv": "^17.2.0",
     "exa-js": "^1.8.17",
     "inngest": "^3.40.2",
