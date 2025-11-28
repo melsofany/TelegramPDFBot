@@ -1,6 +1,4 @@
 import { Agent } from "@mastra/core/agent";
-import { Memory } from "@mastra/memory";
-import { PostgresStore } from "@mastra/pg";
 import { searchElectoralDataTool } from "../tools/searchElectoralDataTool";
 import { generateElectoralPdfTool } from "../tools/generateElectoralPdfTool";
 import { sendTelegramDocumentTool } from "../tools/sendTelegramDocumentTool";
@@ -8,15 +6,6 @@ import { google } from "@ai-sdk/google";
 
 export const electoralAgent = new Agent({
   name: "Electoral Inquiry Agent",
-  
-  memory: new Memory({
-    storage: new PostgresStore({
-      connectionString: process.env.DATABASE_URL!,
-    }),
-    options: {
-      lastMessages: 20,
-    },
-  }),
 
   instructions: `
 أنت بوت مساعد للاستعلام عن اللجان الانتخابية في مصر. مهمتك هي مساعدة المستخدمين في معرفة بيانات لجانهم الانتخابية.
