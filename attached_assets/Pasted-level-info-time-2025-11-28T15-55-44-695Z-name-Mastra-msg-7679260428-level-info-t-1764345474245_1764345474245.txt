@@ -1,0 +1,13 @@
+level":"info","time":"2025-11-28T15:55:44.695Z","name":"Mastra","msg":7679260428}
+{"level":"info","time":"2025-11-28T15:55:44.695Z","name":"Mastra","msg":"مركز طهطا"}
+{"level":"info","time":"2025-11-28T15:55:44.695Z","name":"Mastra","msg":"المستخدم اختار المنطقة: مركز طهطا. الآن يريد البحث عن الاسم التالي: ابانوب سعيد كامل دوس. استخدم أداة البحث للبحث عن هذا الاسم في المنطقة المحددة."}
+{"level":"info","time":"2025-11-28T15:55:47.680Z","name":"Mastra","region":"مركز طهطا","searchName":"ابانوب سعيد كامل دوس","msg":"🔍 [searchElectoralData] Starting search with params:"}
+Error reading PDF attached_assets/‎⁨مركز طهطا⁩_1764329849045.pdf: TypeError: pdfParse is not a function
+    at extractDataFromPDF (file:///opt/render/project/src/.mastra/output/mastra.mjs:111775:24)
+    at async execute (file:///opt/render/project/src/.mastra/output/mastra.mjs:111866:21)
+    at async execFunction (file:///opt/render/project/src/.mastra/output/mastra.mjs:23238:20)
+    at async Immediate.<anonymous> (file:///opt/render/project/src/.mastra/output/mastra.mjs:23286:30)
+{"level":"info","time":"2025-11-28T15:55:47.680Z","name":"Mastra","msg":"📂 [searchElectoralData] Searching in PDF: attached_assets/‎⁨مركز طهطا⁩_1764329849045.pdf"}
+{"level":"warn","time":"2025-11-28T15:55:48.441Z","name":"Mastra","msg":"⚠️ [searchElectoralData] PDF file not found or empty"}
+{"level":"info","time":"2025-11-28T15:55:49.834Z","name":"Mastra","msg":"أدخل الاسم الذي تريد البحث عنه: ابانوب سعيد كامل دوس.\nلم يتم العثور على الاسم في قاعدة البيانات. يرجى التأكد من كتابة الاسم بشكل صحيح أو محاولة اسم آخر.\n"}
+{"level":"info","time":"2025-11-28T15:55:49.901Z","name":"Mastra","ok":true,"result":{"message_id":60,"from":{"id":8563811119,"is_bot":true,"first_name":"Inquiry elec","username":"Inq_elec_bot"},"chat":{"id":7679260428,"first_name":"Ahmed","last_name":"Youssef","type":"private"},"date":1764345349,"text":"أدخل الاسم الذي تريد البحث عنه: ابانوب سعيد كامل دوس.\nلم يتم العثور على الاسم في قاعدة البيانات. يرجى التأكد من كتابة الاسم بشكل صحيح أو محاولة اسم آخر."},"msg":"📨 Message sent:"}

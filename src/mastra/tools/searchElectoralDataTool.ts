@@ -1,7 +1,7 @@
 import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 import * as fs from "fs";
-import * as path from "path";
+import * as pdfParseModule from "pdf-parse";
 
 const PDF_FILES: Record<string, string> = {
   "مركز طما": "attached_assets/‎⁨مركز طما⁩_1764329849045.pdf",
@@ -28,11 +28,11 @@ export interface ElectoralData {
 async function extractDataFromPDF(pdfPath: string): Promise<string> {
   try {
     if (!fs.existsSync(pdfPath)) {
+      console.error(`PDF file not found: ${pdfPath}`);
       return "";
     }
     const dataBuffer = fs.readFileSync(pdfPath);
-    const pdfParseModule = await import("pdf-parse");
-    const pdfParse = pdfParseModule.default || pdfParseModule;
+    const pdfParse = (pdfParseModule as any).default || pdfParseModule;
     const data = await pdfParse(dataBuffer);
     return data.text;
   } catch (error) {
