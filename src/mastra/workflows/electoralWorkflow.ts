@@ -25,6 +25,7 @@ const processWithAgent = createStep({
 
     const response = await electoralAgent.generate(inputData.message, {
       maxSteps: 10,
+      resourceId: `telegram-chat-${inputData.chatId}`,
     });
 
     logger?.info("✅ [Step 1] Agent response received:", response.text?.substring(0, 200));
