@@ -12,6 +12,12 @@ import { inngest, inngestServe } from "./inngest";
 import { electoralAgent } from "./agents/electoralAgent";
 import { electoralWorkflow } from "./workflows/electoralWorkflow";
 import { registerTelegramTrigger } from "../triggers/telegramTriggers";
+import { 
+  getConversationState, 
+  setSelectedRegion, 
+  getCurrentRegion,
+  resetConversation 
+} from "./agents/conversationState";
 
 class ProductionPinoLogger extends MastraLogger {
   protected logger: pino.Logger;
@@ -127,11 +133,89 @@ export const mastra = new Mastra({
 
           try {
             logger?.info("🚀 Processing message with agent directly...");
-            logger?.info("💬 Chat ID for memory:", chatId);
+            logger?.info("💬 Chat ID:", chatId);
             
-            const response = await electoralAgent.generate(message, {
+            const regionMap: Record<string, string> = {
+              "1": "مركز طما",
+              "2": "مركز طهطا", 
+              "3": "قسم طهطا",
+              "مركز طما": "مركز طما",
+              "طما": "مركز طما",
+              "مركز طهطا": "مركز طهطا",
+              "طهطا": "مركز طهطا",
+              "قسم طهطا": "قسم طهطا",
+            };
+
+            const normalizedMessage = message.trim();
+            const selectedRegion = regionMap[normalizedMessage];
+            
+            if (selectedRegion) {
+              setSelectedRegion(chatId, selectedRegion);
+              logger?.info("📍 Region selected:", selectedRegion);
+              
+              const botToken = process.env.TELEGRAM_BOT_TOKEN;
+              if (botToken) {
+                await fetch(
+                  `https://api.telegram.org/bot${botToken}/sendMessage`,
+                  {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      chat_id: chatId,
+                      text: `تم اختيار ${selectedRegion} ✅\n\nالرجاء كتابة اسم الشخص الذي تريد البحث عنه:`,
+                    }),
+                  }
+                );
+              }
+              return;
+            }
+
+            if (normalizedMessage === "/start" || normalizedMessage === "ابدأ" || normalizedMessage === "بداية") {
+              resetConversation(chatId);
+              const botToken = process.env.TELEGRAM_BOT_TOKEN;
+              if (botToken) {
+                await fetch(
+                  `https://api.telegram.org/bot${botToken}/sendMessage`,
+                  {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      chat_id: chatId,
+                      text: `مرحباً بك في خدمة الاستعلام عن اللجان الانتخابية! 🗳️\n\nاختر المنطقة التي تريد البحث فيها:\n1️⃣ مركز طما\n2️⃣ مركز طهطا\n3️⃣ قسم طهطا\n\nأرسل رقم الاختيار أو اسم المنطقة.`,
+                    }),
+                  }
+                );
+              }
+              return;
+            }
+
+            const currentRegion = getCurrentRegion(chatId);
+            logger?.info("📍 Current region from state:", currentRegion);
+            
+            if (!currentRegion) {
+              const botToken = process.env.TELEGRAM_BOT_TOKEN;
+              if (botToken) {
+                await fetch(
+                  `https://api.telegram.org/bot${botToken}/sendMessage`,
+                  {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      chat_id: chatId,
+                      text: `مرحباً بك في خدمة الاستعلام عن اللجان الانتخابية! 🗳️\n\nاختر المنطقة التي تريد البحث فيها:\n1️⃣ مركز طما\n2️⃣ مركز طهطا\n3️⃣ قسم طهطا\n\nأرسل رقم الاختيار أو اسم المنطقة.`,
+                    }),
+                  }
+                );
+              }
+              return;
+            }
+
+            const contextMessage = `المستخدم اختار المنطقة: ${currentRegion}. الآن يريد البحث عن الاسم التالي: ${message}. استخدم أداة البحث للبحث عن هذا الاسم في المنطقة المحددة.`;
+            
+            logger?.info("📝 Context message:", contextMessage);
+            
+            const response = await electoralAgent.generate(contextMessage, {
               maxSteps: 10,
-              resourceId: `telegram-chat-${chatId}`,
             });
 
             const agentResponse = response.text || "عذراً، لم أتمكن من معالجة طلبك.";
