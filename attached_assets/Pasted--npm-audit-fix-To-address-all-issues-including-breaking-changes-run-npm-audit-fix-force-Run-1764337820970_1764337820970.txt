@@ -1,0 +1,27 @@
+  npm audit fix
+To address all issues (including breaking changes), run:
+  npm audit fix --force
+Run `npm audit` for details.
+INFO [2025-11-28 13:45:13.555 +0000] (Mastra CLI): Analyzing dependencies...
+INFO [2025-11-28 13:45:15.541 +0000] (Mastra CLI): Optimizing dependencies...
+INFO [2025-11-28 13:45:42.234 +0000] (Mastra CLI): Bundling Mastra application
+INFO [2025-11-28 13:45:49.159 +0000] (Mastra CLI): Bundling Mastra done
+INFO [2025-11-28 13:45:49.159 +0000] (Mastra CLI): Copying public files
+INFO [2025-11-28 13:45:49.159 +0000] (Mastra CLI): Done copying public files
+INFO [2025-11-28 13:45:49.160 +0000] (Mastra CLI): Copying .npmrc file
+INFO [2025-11-28 13:45:49.160 +0000] (Mastra CLI): Done copying .npmrc file
+INFO [2025-11-28 13:45:49.160 +0000] (Mastra CLI): Installing dependencies
+added 724 packages in 53s
+INFO [2025-11-28 13:46:42.623 +0000] (Mastra CLI): added 724 packages in 53s
+INFO [2025-11-28 13:46:42.724 +0000] (Mastra CLI): Done installing dependencies
+INFO [2025-11-28 13:46:42.724 +0000] (Mastra CLI): Build successful, you can now deploy the .mastra/output directory to your target platform.
+INFO [2025-11-28 13:46:42.724 +0000] (Mastra CLI): To start the server, run: node --import=./.mastra/output/instrumentation.mjs .mastra/output/index.mjs
+==> Uploading build...
+==> Uploaded in 10.4s. Compression took 44.4s
+==> Build successful 🎉
+==> Deploying...
+==> Your service is live 🎉
+==> Running 'node .mastra/output/index.mjs'
+{"level":"warn","time":"2025-11-28T13:48:31.059Z","name":"Mastra","msg":"If you are using a custom instrumentation file or want to disable this warning, set the globalThis.___MASTRA_TELEMETRY___ variable to true in your instrumentation file."}
+{"level":"warn","time":"2025-11-28T13:48:31.059Z","name":"Mastra","msg":"Mastra telemetry is deprecated and will be removed on the Nov 4th release. Instead use AI Tracing. More info can be found here: https://github.com/mastra-ai/mastra/issues/8577 and here: https://mastra.ai/en/docs/observability/ai-tracing/overview"}
+{"level":"info","time":"2025-11-28T13:48:31.181Z","name":"Mastra","msg":" Mastra API running on port http://0.0.0.0:5000/api"}
