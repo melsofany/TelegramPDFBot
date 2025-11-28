@@ -4,11 +4,7 @@ import { sharedPostgresStorage } from "../storage";
 import { searchElectoralDataTool } from "../tools/searchElectoralDataTool";
 import { generateElectoralPdfTool } from "../tools/generateElectoralPdfTool";
 import { sendTelegramDocumentTool } from "../tools/sendTelegramDocumentTool";
-import { createOpenAI } from "@ai-sdk/openai";
-
-const openai = createOpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+import { google } from "@ai-sdk/google";
 
 export const electoralAgent = new Agent({
   name: "Electoral Inquiry Agent",
@@ -59,7 +55,7 @@ export const electoralAgent = new Agent({
 أرسل رقم الاختيار أو اسم المنطقة."
 `,
 
-  model: openai.responses("gpt-4o"),
+  model: google("gemini-2.0-flash"),
 
   tools: {
     searchElectoralDataTool,
