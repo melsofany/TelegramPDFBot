@@ -127,9 +127,11 @@ export const mastra = new Mastra({
 
           try {
             logger?.info("🚀 Processing message with agent directly...");
+            logger?.info("💬 Chat ID for memory:", chatId);
             
             const response = await electoralAgent.generate(message, {
               maxSteps: 10,
+              resourceId: `telegram-chat-${chatId}`,
             });
 
             const agentResponse = response.text || "عذراً، لم أتمكن من معالجة طلبك.";
