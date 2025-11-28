@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: electoral-telegram-bot
+    runtime: node
+    region: frankfurt
+    plan: free
+    buildCommand: npm install && npx mastra build
+    startCommand: node .mastra/output/index.mjs
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: GOOGLE_GENERATIVE_AI_API_KEY
+        sync: false
+    healthCheckPath: /
