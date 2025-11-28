@@ -122,14 +122,53 @@ export const mastra = new Mastra({
           const logger = mastra.getLogger();
           logger?.info("📱 [Telegram Trigger] Received message:", triggerInfo);
 
-          const run = await electoralWorkflow.createRunAsync();
-          await run.start({
-            inputData: {
-              message: triggerInfo.params.message,
-              chatId: triggerInfo.payload.message.chat.id,
-              userName: triggerInfo.params.userName,
-            },
-          });
+          const chatId = triggerInfo.payload.message.chat.id;
+          const message = triggerInfo.params.message;
+
+          try {
+            logger?.info("🚀 Processing message with agent directly...");
+            
+            const response = await electoralAgent.generate(message, {
+              maxSteps: 10,
+            });
+
+            const agentResponse = response.text || "عذراً، لم أتمكن من معالجة طلبك.";
+            logger?.info("✅ Agent response:", agentResponse.substring(0, 200));
+
+            const botToken = process.env.TELEGRAM_BOT_TOKEN;
+            if (botToken) {
+              const sendResult = await fetch(
+                `https://api.telegram.org/bot${botToken}/sendMessage`,
+                {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    chat_id: chatId,
+                    text: agentResponse,
+                    parse_mode: "Markdown",
+                  }),
+                }
+              );
+              const result = await sendResult.json();
+              logger?.info("📨 Message sent:", result);
+            }
+          } catch (error) {
+            logger?.error("❌ Error processing message:", error);
+            const botToken = process.env.TELEGRAM_BOT_TOKEN;
+            if (botToken) {
+              await fetch(
+                `https://api.telegram.org/bot${botToken}/sendMessage`,
+                {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    chat_id: chatId,
+                    text: "عذراً، حدث خطأ أثناء معالجة طلبك. حاول مرة أخرى.",
+                  }),
+                }
+              );
+            }
+          }
         },
       }),
     ],
