@@ -6,6 +6,15 @@ The application includes an electoral analysis agent with a corresponding workfl
 
 # Recent Changes (November 28, 2025)
 
+## PDF Arabic Text Rendering Fix
+- **Fixed**: Arabic text now renders correctly in generated PDFs with proper RTL support
+- **Modified**: `generateElectoralPdfTool.ts` - Complete rewrite of Arabic text processing
+- **Key Changes**:
+  - `reshapeArabicSegments()`: Uses regex to reshape only Arabic character sequences, preserving digits and punctuation
+  - `processArabicText()`: Uses bidi-js with proper RTL base level (integer 1) for correct bidirectional text ordering
+  - `processFullRtlString()`: Handles composite strings with mixed Arabic/numbers (e.g., national ID display)
+- **Result**: PDF output now matches the official electoral inquiry document format
+
 ## PDF Splitting Feature
 - **Added**: `splitPdfBySubcommitteeTool.ts` - Automatically splits PDF files into chunks (10 pages per chunk)
 - **Modified**: `searchElectoralDataTool.ts` - Now searches in split chunks for faster performance
