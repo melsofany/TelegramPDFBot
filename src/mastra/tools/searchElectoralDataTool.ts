@@ -1,13 +1,36 @@
 import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 import * as fs from "fs";
+import * as path from "path";
+import { GoogleAIFileManager } from "@google/generative-ai/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const PDF_FILES: Record<string, string> = {
-  "مركز طما": "attached_assets/‎⁨مركز طما⁩_1764329849045.pdf",
-  "مركز طهطا": "attached_assets/‎⁨مركز طهطا⁩_1764329849045.pdf",
-  "قسم طهطا": "attached_assets/‎⁨قسم طهطا⁩_1764329849045.pdf",
-};
+function findPdfFile(region: string): string | null {
+  const assetsDir = "/home/runner/workspace/attached_assets";
+  
+  try {
+    const files = fs.readdirSync(assetsDir);
+    const normalizedRegion = region.replace(/[\u200e\u200f\u2068\u2069]/g, '').trim();
+    
+    console.log(`Looking for region: "${normalizedRegion}" in ${files.length} files`);
+    
+    for (const file of files) {
+      if (file.endsWith('.pdf')) {
+        const normalizedFile = file.replace(/[\u200e\u200f\u2068\u2069]/g, '');
+        console.log(`Checking file: "${normalizedFile}"`);
+        if (normalizedFile.includes(normalizedRegion)) {
+          const fullPath = path.join(assetsDir, file);
+          console.log(`Found matching file: ${fullPath}`);
+          return fullPath;
+        }
+      }
+    }
+  } catch (error) {
+    console.error("Error reading assets directory:", error);
+  }
+  
+  return null;
+}
 
 export interface ElectoralData {
   name: string;
@@ -23,6 +46,48 @@ export interface ElectoralData {
   individualCircle: string;
   listCircle: string;
   region: string;
+}
+
+const uploadedFiles: Record<string, string> = {};
+
+async function uploadPdfToGoogleAI(pdfPath: string): Promise<string | null> {
+  const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+  if (!apiKey) return null;
+  
+  if (uploadedFiles[pdfPath]) {
+    console.log("Using cached file URI:", uploadedFiles[pdfPath]);
+    return uploadedFiles[pdfPath];
+  }
+  
+  try {
+    const fileManager = new GoogleAIFileManager(apiKey);
+    
+    console.log("Uploading PDF to Google AI Files API...");
+    const uploadResult = await fileManager.uploadFile(pdfPath, {
+      mimeType: "application/pdf",
+      displayName: path.basename(pdfPath),
+    });
+    
+    console.log(`Uploaded file: ${uploadResult.file.name}, URI: ${uploadResult.file.uri}`);
+    
+    let file = uploadResult.file;
+    while (file.state === "PROCESSING") {
+      console.log("Waiting for file to be processed...");
+      await new Promise(resolve => setTimeout(resolve, 5000));
+      file = await fileManager.getFile(file.name);
+    }
+    
+    if (file.state === "FAILED") {
+      console.error("File processing failed");
+      return null;
+    }
+    
+    uploadedFiles[pdfPath] = file.uri;
+    return file.uri;
+  } catch (error) {
+    console.error("Error uploading PDF:", error);
+    return null;
+  }
 }
 
 async function searchInPDFWithGemini(pdfPath: string, searchName: string): Promise<{
@@ -42,9 +107,14 @@ async function searchInPDFWithGemini(pdfPath: string, searchName: string): Promi
       return { found: false, results: [], rawResponse: "File not found" };
     }
 
-    const pdfBuffer = fs.readFileSync(pdfPath);
-    const pdfBase64 = pdfBuffer.toString("base64");
-
+    console.log("Uploading PDF to Google AI...");
+    const fileUri = await uploadPdfToGoogleAI(pdfPath);
+    
+    if (!fileUri) {
+      console.error("Failed to upload PDF to Google AI");
+      return { found: false, results: [], rawResponse: "Failed to upload PDF" };
+    }
+    
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
@@ -55,7 +125,7 @@ async function searchInPDFWithGemini(pdfPath: string, searchName: string): Promi
 إذا وجدت الاسم أو اسم مشابه، أعد البيانات بالتنسيق التالي لكل نتيجة:
 ---
 الاسم: [الاسم الكامل]
-الرقم القومي: [الرقم القومي إن وجد]
+الرقم القومي: [الرقم القومي إن وجد - 14 رقم]
 مقر الانتخاب: [اسم المدرسة أو المقر]
 رقم اللجنة الفرعية: [رقم اللجنة]
 رقم الناخب: [رقم الناخب في الكشوف]
@@ -66,11 +136,12 @@ async function searchInPDFWithGemini(pdfPath: string, searchName: string): Promi
 
 ابحث عن تطابق جزئي أيضاً (مثلاً إذا كان البحث عن "أحمد" ابحث عن كل الأسماء التي تحتوي على أحمد).`;
 
+    console.log("Sending request to Gemini with file URI...");
     const result = await model.generateContent([
       {
-        inlineData: {
+        fileData: {
           mimeType: "application/pdf",
-          data: pdfBase64,
+          fileUri: fileUri,
         },
       },
       { text: prompt },
@@ -200,16 +271,18 @@ export const searchElectoralDataTool = createTool({
 
     const { region, searchName } = context;
     
-    const pdfPath = PDF_FILES[region];
+    const pdfPath = findPdfFile(region);
     if (!pdfPath) {
-      logger?.warn("❌ [searchElectoralData] Invalid region:", region);
+      logger?.warn("❌ [searchElectoralData] PDF file not found for region:", region);
       return {
         found: false,
         results: [],
-        message: `المنطقة غير صالحة: ${region}. الرجاء اختيار من: مركز طما، مركز طهطا، قسم طهطا`,
+        message: `لم يتم العثور على ملف المنطقة: ${region}. الرجاء اختيار من: مركز طما، مركز طهطا، قسم طهطا`,
         region,
       };
     }
+    
+    logger?.info("📁 [searchElectoralData] Found PDF file:", pdfPath);
 
     logger?.info(`📂 [searchElectoralData] Searching in PDF with Gemini: ${pdfPath}`);
     logger?.info(`🔎 [searchElectoralData] Search name: ${searchName}`);
