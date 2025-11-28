@@ -42,13 +42,10 @@ function processArabicText(text: string): string {
   
   try {
     const reshaped = ArabicReshaper.reshape(text);
-    const reordered = bidi.getReorderedString(reshaped, { 
-      direction: 'rtl' 
-    });
-    return reordered;
+    return reshaped;
   } catch (error) {
-    console.warn('Error processing Arabic text, using fallback:', error);
-    return text.split('').reverse().join('');
+    console.warn('Error processing Arabic text:', error);
+    return text;
   }
 }
 

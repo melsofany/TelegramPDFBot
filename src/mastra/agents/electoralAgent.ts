@@ -4,16 +4,6 @@ import { PostgresStore } from "@mastra/pg";
 import { searchElectoralDataTool } from "../tools/searchElectoralDataTool";
 import { generateElectoralPdfTool } from "../tools/generateElectoralPdfTool";
 import { sendTelegramDocumentTool } from "../tools/sendTelegramDocumentTool";
-import { createGoogleGenerativeAI } from "@ai-sdk/google";
-
-const getGoogleModel = () => {
-  const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
-  if (!apiKey) {
-    console.warn("⚠️ GOOGLE_GENERATIVE_AI_API_KEY not set");
-  }
-  const googleAI = createGoogleGenerativeAI({ apiKey });
-  return googleAI("gemini-2.0-flash");
-};
 
 const createMemory = () => {
   const connectionString = process.env.DATABASE_URL;
@@ -79,7 +69,10 @@ export const electoralAgent = new Agent({
    - searchName: "محمد أحمد علي"
 `,
 
-  model: getGoogleModel(),
+  model: () => ({
+    id: "google/gemini-2.0-flash",
+    apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
+  }),
 
   tools: {
     searchElectoralDataTool,
