@@ -23,12 +23,9 @@ const processWithAgent = createStep({
     logger?.info("🚀 [Step 1] Processing message with electoral agent...");
     logger?.info("📝 [Step 1] Input data:", inputData);
 
-    const response = await electoralAgent.generateLegacy(
-      [{ role: "user", content: inputData.message }],
-      {
-        maxSteps: 10,
-      }
-    );
+    const response = await electoralAgent.generate(inputData.message, {
+      maxSteps: 10,
+    });
 
     logger?.info("✅ [Step 1] Agent response received:", response.text?.substring(0, 200));
 

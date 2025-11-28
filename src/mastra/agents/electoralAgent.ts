@@ -2,11 +2,7 @@ import { Agent } from "@mastra/core/agent";
 import { searchElectoralDataTool } from "../tools/searchElectoralDataTool";
 import { generateElectoralPdfTool } from "../tools/generateElectoralPdfTool";
 import { sendTelegramDocumentTool } from "../tools/sendTelegramDocumentTool";
-import { createOpenRouter } from "@openrouter/ai-sdk-provider";
-
-const openrouter = createOpenRouter({
-  apiKey: process.env.OPENROUTER_API_KEY,
-});
+import { google } from "@ai-sdk/google";
 
 export const electoralAgent = new Agent({
   name: "Electoral Inquiry Agent",
@@ -57,7 +53,7 @@ export const electoralAgent = new Agent({
 أرسل رقم الاختيار أو اسم المنطقة."
 `,
 
-  model: openrouter("google/gemini-2.0-flash-001"),
+  model: google("gemini-2.0-flash"),
 
   tools: {
     searchElectoralDataTool,
