@@ -1,7 +1,7 @@
 import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 import * as fs from "fs";
-import * as pdfParseModule from "pdf-parse";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 const PDF_FILES: Record<string, string> = {
   "مركز طما": "attached_assets/‎⁨مركز طما⁩_1764329849045.pdf",
@@ -25,34 +25,92 @@ export interface ElectoralData {
   region: string;
 }
 
-async function extractDataFromPDF(pdfPath: string): Promise<string> {
+async function searchInPDFWithGemini(pdfPath: string, searchName: string): Promise<{
+  found: boolean;
+  results: ElectoralData[];
+  rawResponse: string;
+}> {
+  const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+  if (!apiKey) {
+    console.error("GOOGLE_GENERATIVE_AI_API_KEY not set");
+    return { found: false, results: [], rawResponse: "API key not configured" };
+  }
+
   try {
     if (!fs.existsSync(pdfPath)) {
       console.error(`PDF file not found: ${pdfPath}`);
-      return "";
+      return { found: false, results: [], rawResponse: "File not found" };
     }
-    const dataBuffer = fs.readFileSync(pdfPath);
-    const pdfParse = (pdfParseModule as any).default || pdfParseModule;
-    const data = await pdfParse(dataBuffer);
-    return data.text;
-  } catch (error) {
-    console.error(`Error reading PDF ${pdfPath}:`, error);
-    return "";
-  }
-}
 
-function searchInText(text: string, searchName: string): ElectoralData[] {
-  const results: ElectoralData[] = [];
-  const lines = text.split("\n");
-  
-  const normalizedSearchName = searchName.trim().toLowerCase();
-  
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i].trim().toLowerCase();
-    if (line.includes(normalizedSearchName)) {
+    const pdfBuffer = fs.readFileSync(pdfPath);
+    const pdfBase64 = pdfBuffer.toString("base64");
+
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+
+    const prompt = `أنت مساعد للبحث في كشوف الناخبين الانتخابية.
+
+ابحث في هذا الملف PDF عن الاسم: "${searchName}"
+
+إذا وجدت الاسم أو اسم مشابه، أعد البيانات بالتنسيق التالي لكل نتيجة:
+---
+الاسم: [الاسم الكامل]
+الرقم القومي: [الرقم القومي إن وجد]
+مقر الانتخاب: [اسم المدرسة أو المقر]
+رقم اللجنة الفرعية: [رقم اللجنة]
+رقم الناخب: [رقم الناخب في الكشوف]
+العنوان: [العنوان إن وجد]
+---
+
+إذا لم تجد الاسم، قل: "لم يتم العثور على الاسم"
+
+ابحث عن تطابق جزئي أيضاً (مثلاً إذا كان البحث عن "أحمد" ابحث عن كل الأسماء التي تحتوي على أحمد).`;
+
+    const result = await model.generateContent([
+      {
+        inlineData: {
+          mimeType: "application/pdf",
+          data: pdfBase64,
+        },
+      },
+      { text: prompt },
+    ]);
+
+    const responseText = result.response.text();
+    console.log("Gemini response:", responseText.substring(0, 500));
+
+    if (responseText.includes("لم يتم العثور") || responseText.includes("لم أجد") || responseText.includes("غير موجود")) {
+      return { found: false, results: [], rawResponse: responseText };
+    }
+
+    const results: ElectoralData[] = [];
+    const sections = responseText.split("---").filter(s => s.trim());
+
+    for (const section of sections) {
+      if (section.includes("الاسم:")) {
+        const data: ElectoralData = {
+          name: extractField(section, "الاسم") || searchName,
+          nationalId: extractField(section, "الرقم القومي") || "",
+          pollingStation: extractField(section, "مقر الانتخاب") || extractField(section, "المدرسة") || "",
+          governorate: "سوهاج",
+          center: "",
+          address: extractField(section, "العنوان") || "",
+          subcommitteeNumber: extractField(section, "رقم اللجنة الفرعية") || extractField(section, "رقم اللجنة") || "",
+          voterNumber: extractField(section, "رقم الناخب") || "",
+          votingDate: "",
+          attendanceDensity: "",
+          individualCircle: "",
+          listCircle: "",
+          region: "",
+        };
+        results.push(data);
+      }
+    }
+
+    if (results.length === 0 && !responseText.includes("لم يتم العثور")) {
       const data: ElectoralData = {
         name: searchName,
-        nationalId: "",
+        nationalId: extractFromText(responseText, /\d{14}/) || "",
         pollingStation: "",
         governorate: "سوهاج",
         center: "",
@@ -66,33 +124,46 @@ function searchInText(text: string, searchName: string): ElectoralData[] {
         region: "",
       };
       
-      for (let j = Math.max(0, i - 5); j < Math.min(lines.length, i + 10); j++) {
-        const contextLine = lines[j].trim();
-        
-        if (/\d{14}/.test(contextLine)) {
-          const match = contextLine.match(/\d{14}/);
-          if (match) data.nationalId = match[0];
-        }
-        
-        if (contextLine.includes("مدرسة") || contextLine.includes("لجنة")) {
-          if (!data.pollingStation) data.pollingStation = contextLine;
-        }
-        
-        if (contextLine.includes("شارع") || contextLine.includes("طريق")) {
-          if (!data.address) data.address = contextLine;
-        }
+      if (responseText.length > 50) {
+        results.push(data);
       }
-      
-      results.push(data);
+    }
+
+    return { 
+      found: results.length > 0, 
+      results, 
+      rawResponse: responseText 
+    };
+
+  } catch (error) {
+    console.error(`Error searching PDF with Gemini:`, error);
+    return { found: false, results: [], rawResponse: `Error: ${error}` };
+  }
+}
+
+function extractField(text: string, fieldName: string): string {
+  const patterns = [
+    new RegExp(`${fieldName}[:\\s]+([^\\n]+)`, 'i'),
+    new RegExp(`${fieldName}[:\\s]*([^\\n]+)`, 'i'),
+  ];
+  
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    if (match && match[1]) {
+      return match[1].trim().replace(/^\[|\]$/g, '');
     }
   }
-  
-  return results;
+  return "";
+}
+
+function extractFromText(text: string, pattern: RegExp): string {
+  const match = text.match(pattern);
+  return match ? match[0] : "";
 }
 
 export const searchElectoralDataTool = createTool({
   id: "search-electoral-data",
-  description: `أداة للبحث عن بيانات اللجان الانتخابية بالاسم في منطقة محددة.
+  description: `أداة للبحث عن بيانات اللجان الانتخابية بالاسم في منطقة محددة باستخدام Google AI.
   استخدم هذه الأداة عندما يريد المستخدم البحث عن بيانات انتخابية.
   يجب تحديد المنطقة (مركز طما / مركز طهطا / قسم طهطا) والاسم للبحث.`,
 
@@ -120,11 +191,12 @@ export const searchElectoralDataTool = createTool({
     })),
     message: z.string(),
     region: z.string(),
+    rawResponse: z.string().optional(),
   }),
 
   execute: async ({ context, mastra }) => {
     const logger = mastra?.getLogger();
-    logger?.info("🔍 [searchElectoralData] Starting search with params:", context);
+    logger?.info("🔍 [searchElectoralData] Starting search with Google AI:", context);
 
     const { region, searchName } = context;
     
@@ -139,21 +211,10 @@ export const searchElectoralDataTool = createTool({
       };
     }
 
-    logger?.info(`📂 [searchElectoralData] Searching in PDF: ${pdfPath}`);
+    logger?.info(`📂 [searchElectoralData] Searching in PDF with Gemini: ${pdfPath}`);
+    logger?.info(`🔎 [searchElectoralData] Search name: ${searchName}`);
 
-    const pdfText = await extractDataFromPDF(pdfPath);
-    
-    if (!pdfText) {
-      logger?.warn("⚠️ [searchElectoralData] PDF file not found or empty");
-      return {
-        found: false,
-        results: [],
-        message: `ملف بيانات ${region} غير موجود. الرجاء رفع الملف أولاً.`,
-        region,
-      };
-    }
-
-    const results = searchInText(pdfText, searchName);
+    const { found, results, rawResponse } = await searchInPDFWithGemini(pdfPath, searchName);
     
     results.forEach(r => {
       r.region = region;
@@ -161,13 +222,15 @@ export const searchElectoralDataTool = createTool({
     });
 
     logger?.info(`✅ [searchElectoralData] Found ${results.length} results`);
+    logger?.info(`📝 [searchElectoralData] Raw response preview: ${rawResponse.substring(0, 200)}`);
 
-    if (results.length === 0) {
+    if (!found || results.length === 0) {
       return {
         found: false,
         results: [],
         message: `لم يتم العثور على "${searchName}" في ${region}. تأكد من كتابة الاسم بشكل صحيح.`,
         region,
+        rawResponse,
       };
     }
 
@@ -176,6 +239,7 @@ export const searchElectoralDataTool = createTool({
       results,
       message: `تم العثور على ${results.length} نتيجة لـ "${searchName}" في ${region}`,
       region,
+      rawResponse,
     };
   },
 });
