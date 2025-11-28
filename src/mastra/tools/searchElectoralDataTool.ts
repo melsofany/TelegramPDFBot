@@ -118,23 +118,22 @@ async function searchInPDFWithGemini(pdfPath: string, searchName: string): Promi
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
-    const prompt = `أنت مساعد للبحث في كشوف الناخبين الانتخابية.
+    const prompt = `أنت خبير في البحث في كشوف الناخبين المصرية. ابحث عن كل شخص اسمه يطابق أو يشبه: "${searchName}"
 
-ابحث في هذا الملف PDF عن الاسم: "${searchName}"
+البحث:
+1. ابحث عن تطابق دقيق للاسم الكامل
+2. ابحث عن تطابق جزئي (أي كلمة من الاسم)
+3. ابحث عن نطق قريب أو أخطاء إملائية
 
-إذا وجدت الاسم أو اسم مشابه، أعد البيانات بالتنسيق التالي لكل نتيجة:
+عند إيجاد نتائج، اعرض كل نتيجة بالتنسيق:
 ---
-الاسم: [الاسم الكامل]
-الرقم القومي: [الرقم القومي إن وجد - 14 رقم]
-مقر الانتخاب: [اسم المدرسة أو المقر]
-رقم اللجنة الفرعية: [رقم اللجنة]
-رقم الناخب: [رقم الناخب في الكشوف]
-العنوان: [العنوان إن وجد]
+الاسم: [الاسم الكامل كما هو مكتوب في الكشف]
+الرقم القومي: [14 رقم إن وجد]
+مقر الانتخاب: [اسم المدرسة]
+رقم اللجنة: [رقم اللجنة الفرعية]
 ---
 
-إذا لم تجد الاسم، قل: "لم يتم العثور على الاسم"
-
-ابحث عن تطابق جزئي أيضاً (مثلاً إذا كان البحث عن "أحمد" ابحث عن كل الأسماء التي تحتوي على أحمد).`;
+إذا لم تجد أي نتيجة بعد البحث الشامل، اكتب: "لم يتم العثور على أي نتائج"`;
 
     console.log("Sending request to Gemini with file URI...");
     const result = await model.generateContent([
@@ -148,45 +147,24 @@ async function searchInPDFWithGemini(pdfPath: string, searchName: string): Promi
     ]);
 
     const responseText = result.response.text();
-    console.log("Gemini response:", responseText.substring(0, 500));
+    console.log("Gemini response length:", responseText.length);
 
     if (responseText.includes("لم يتم العثور") || responseText.includes("لم أجد") || responseText.includes("غير موجود")) {
       return { found: false, results: [], rawResponse: responseText };
     }
 
     const results: ElectoralData[] = [];
-    const sections = responseText.split("---").filter(s => s.trim());
+    const sections = responseText.split("---").filter(s => s.trim() && s.includes("الاسم:"));
 
     for (const section of sections) {
-      if (section.includes("الاسم:")) {
-        const data: ElectoralData = {
-          name: extractField(section, "الاسم") || searchName,
-          nationalId: extractField(section, "الرقم القومي") || "",
-          pollingStation: extractField(section, "مقر الانتخاب") || extractField(section, "المدرسة") || "",
-          governorate: "سوهاج",
-          center: "",
-          address: extractField(section, "العنوان") || "",
-          subcommitteeNumber: extractField(section, "رقم اللجنة الفرعية") || extractField(section, "رقم اللجنة") || "",
-          voterNumber: extractField(section, "رقم الناخب") || "",
-          votingDate: "",
-          attendanceDensity: "",
-          individualCircle: "",
-          listCircle: "",
-          region: "",
-        };
-        results.push(data);
-      }
-    }
-
-    if (results.length === 0 && !responseText.includes("لم يتم العثور")) {
       const data: ElectoralData = {
-        name: searchName,
-        nationalId: extractFromText(responseText, /\d{14}/) || "",
-        pollingStation: "",
+        name: extractField(section, "الاسم") || searchName,
+        nationalId: extractField(section, "الرقم القومي") || "",
+        pollingStation: extractField(section, "مقر الانتخاب") || "",
         governorate: "سوهاج",
         center: "",
         address: "",
-        subcommitteeNumber: "",
+        subcommitteeNumber: extractField(section, "رقم اللجنة") || "",
         voterNumber: "",
         votingDate: "",
         attendanceDensity: "",
@@ -194,10 +172,7 @@ async function searchInPDFWithGemini(pdfPath: string, searchName: string): Promi
         listCircle: "",
         region: "",
       };
-      
-      if (responseText.length > 50) {
-        results.push(data);
-      }
+      results.push(data);
     }
 
     return { 
@@ -208,7 +183,7 @@ async function searchInPDFWithGemini(pdfPath: string, searchName: string): Promi
 
   } catch (error) {
     console.error(`Error searching PDF with Gemini:`, error);
-    return { found: false, results: [], rawResponse: `Error: ${error}` };
+    return { found: false, results: [], rawResponse: `Error: ${String(error)}` };
   }
 }
 
