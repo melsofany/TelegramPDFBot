@@ -10,7 +10,6 @@ const processWithAgent = createStep({
     message: z.string().describe("رسالة المستخدم"),
     chatId: z.number().describe("معرف المحادثة في تيليجرام"),
     userName: z.string().optional().describe("اسم المستخدم في تيليجرام"),
-    threadId: z.string().optional().describe("معرف المحادثة للذاكرة"),
   }),
 
   outputSchema: z.object({
@@ -24,13 +23,9 @@ const processWithAgent = createStep({
     logger?.info("🚀 [Step 1] Processing message with electoral agent...");
     logger?.info("📝 [Step 1] Input data:", inputData);
 
-    const threadId = inputData.threadId || `telegram_${inputData.chatId}`;
-
     const response = await electoralAgent.generateLegacy(
       [{ role: "user", content: inputData.message }],
       {
-        resourceId: `telegram_user_${inputData.chatId}`,
-        threadId: threadId,
         maxSteps: 10,
       }
     );
@@ -149,7 +144,6 @@ export const electoralWorkflow = createWorkflow({
     message: z.string().describe("رسالة المستخدم"),
     chatId: z.number().describe("معرف المحادثة في تيليجرام"),
     userName: z.string().optional().describe("اسم المستخدم"),
-    threadId: z.string().optional().describe("معرف المحادثة للذاكرة"),
   }) as any,
 
   outputSchema: z.object({

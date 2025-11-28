@@ -7,7 +7,6 @@ import { MCPServer } from "@mastra/mcp";
 import { NonRetriableError } from "inngest";
 import { z } from "zod";
 
-import { sharedPostgresStorage } from "./storage";
 import { inngest, inngestServe } from "./inngest";
 
 import { electoralAgent } from "./agents/electoralAgent";
@@ -56,7 +55,6 @@ class ProductionPinoLogger extends MastraLogger {
 }
 
 export const mastra = new Mastra({
-  storage: sharedPostgresStorage,
   workflows: { electoralWorkflow },
   agents: { electoralAgent },
   mcpServers: {
@@ -130,7 +128,6 @@ export const mastra = new Mastra({
               message: triggerInfo.params.message,
               chatId: triggerInfo.payload.message.chat.id,
               userName: triggerInfo.params.userName,
-              threadId: `telegram_${triggerInfo.payload.message.chat.id}`,
             },
           });
         },

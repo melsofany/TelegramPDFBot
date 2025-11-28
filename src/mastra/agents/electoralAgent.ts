@@ -1,10 +1,8 @@
 import { Agent } from "@mastra/core/agent";
-import { Memory } from "@mastra/memory";
-import { sharedPostgresStorage } from "../storage";
 import { searchElectoralDataTool } from "../tools/searchElectoralDataTool";
 import { generateElectoralPdfTool } from "../tools/generateElectoralPdfTool";
 import { sendTelegramDocumentTool } from "../tools/sendTelegramDocumentTool";
-import { google } from "@ai-sdk/google";
+import { openai } from "@ai-sdk/openai";
 
 export const electoralAgent = new Agent({
   name: "Electoral Inquiry Agent",
@@ -55,21 +53,11 @@ export const electoralAgent = new Agent({
 أرسل رقم الاختيار أو اسم المنطقة."
 `,
 
-  model: google("gemini-2.0-flash"),
+  model: openai("gpt-4o"),
 
   tools: {
     searchElectoralDataTool,
     generateElectoralPdfTool,
     sendTelegramDocumentTool,
   },
-
-  memory: new Memory({
-    options: {
-      threads: {
-        generateTitle: true,
-      },
-      lastMessages: 20,
-    },
-    storage: sharedPostgresStorage,
-  }),
 });
