@@ -4,6 +4,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { GoogleAIFileManager } from "@google/generative-ai/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { getChunkFiles, isCenterSplit } from "./splitPdfBySubcommitteeTool";
 
 function findPdfFile(region: string): string | null {
   const assetsDir = "/home/runner/workspace/attached_assets";
@@ -259,8 +260,55 @@ export const searchElectoralDataTool = createTool({
     
     logger?.info("📁 [searchElectoralData] Found PDF file:", pdfPath);
 
-    logger?.info(`📂 [searchElectoralData] Searching in PDF with Gemini: ${pdfPath}`);
     logger?.info(`🔎 [searchElectoralData] Search name: ${searchName}`);
+
+    if (isCenterSplit(region)) {
+      logger?.info(`📂 [searchElectoralData] Using split files for ${region}`);
+      const chunkFiles = getChunkFiles(region);
+      
+      const allResults: ElectoralData[] = [];
+      let combinedRawResponse = "";
+      
+      for (const chunk of chunkFiles) {
+        logger?.info(`🔍 [searchElectoralData] Searching in chunk ${chunk.chunkNumber}: ${chunk.fileName}`);
+        
+        const { found, results, rawResponse } = await searchInPDFWithGemini(chunk.fileName, searchName);
+        
+        if (found && results.length > 0) {
+          results.forEach(r => {
+            r.region = region;
+            r.center = region;
+          });
+          allResults.push(...results);
+          combinedRawResponse += `\n--- جزء ${chunk.chunkNumber} ---\n${rawResponse}`;
+          
+          logger?.info(`✅ [searchElectoralData] Found ${results.length} results in chunk ${chunk.chunkNumber}`);
+          break;
+        }
+      }
+      
+      logger?.info(`✅ [searchElectoralData] Total found: ${allResults.length} results`);
+      
+      if (allResults.length === 0) {
+        return {
+          found: false,
+          results: [],
+          message: `لم يتم العثور على "${searchName}" في ${region}. تأكد من كتابة الاسم بشكل صحيح.`,
+          region,
+          rawResponse: combinedRawResponse || "لم يتم العثور على نتائج",
+        };
+      }
+      
+      return {
+        found: true,
+        results: allResults,
+        message: `تم العثور على ${allResults.length} نتيجة لـ "${searchName}" في ${region}`,
+        region,
+        rawResponse: combinedRawResponse,
+      };
+    }
+
+    logger?.info(`📂 [searchElectoralData] Searching in full PDF: ${pdfPath}`);
 
     const { found, results, rawResponse } = await searchInPDFWithGemini(pdfPath, searchName);
     

@@ -18,6 +18,7 @@ import {
   getCurrentRegion,
   resetConversation 
 } from "./agents/conversationState";
+import { isCenterSplit, splitCenterPdf } from "./tools/splitPdfBySubcommitteeTool";
 
 class ProductionPinoLogger extends MastraLogger {
   protected logger: pino.Logger;
@@ -154,18 +155,72 @@ export const mastra = new Mastra({
               logger?.info("📍 Region selected:", selectedRegion);
               
               const botToken = process.env.TELEGRAM_BOT_TOKEN;
-              if (botToken) {
-                await fetch(
-                  `https://api.telegram.org/bot${botToken}/sendMessage`,
-                  {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                      chat_id: chatId,
-                      text: `تم اختيار ${selectedRegion} ✅\n\nالرجاء كتابة اسم الشخص الذي تريد البحث عنه:`,
-                    }),
+              
+              if (!isCenterSplit(selectedRegion)) {
+                logger?.info("📂 [Telegram Trigger] Splitting PDF for region:", selectedRegion);
+                
+                if (botToken) {
+                  await fetch(
+                    `https://api.telegram.org/bot${botToken}/sendMessage`,
+                    {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        chat_id: chatId,
+                        text: `تم اختيار ${selectedRegion} ✅\n\n⏳ جاري تجهيز الملفات... يرجى الانتظار...`,
+                      }),
+                    }
+                  );
+                }
+                
+                try {
+                  const splitResult = await splitCenterPdf(selectedRegion, logger);
+                  
+                  logger?.info("✅ [Telegram Trigger] Split result:", splitResult);
+                  
+                  if (botToken) {
+                    await fetch(
+                      `https://api.telegram.org/bot${botToken}/sendMessage`,
+                      {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          chat_id: chatId,
+                          text: `✅ تم تجهيز ${splitResult.chunksCount} جزء.\n\nالرجاء كتابة اسم الشخص الذي تريد البحث عنه:`,
+                        }),
+                      }
+                    );
                   }
-                );
+                } catch (error) {
+                  logger?.error("❌ [Telegram Trigger] Error splitting PDF:", error);
+                  if (botToken) {
+                    await fetch(
+                      `https://api.telegram.org/bot${botToken}/sendMessage`,
+                      {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          chat_id: chatId,
+                          text: `تم اختيار ${selectedRegion} ✅\n\nالرجاء كتابة اسم الشخص الذي تريد البحث عنه:`,
+                        }),
+                      }
+                    );
+                  }
+                }
+              } else {
+                if (botToken) {
+                  await fetch(
+                    `https://api.telegram.org/bot${botToken}/sendMessage`,
+                    {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        chat_id: chatId,
+                        text: `تم اختيار ${selectedRegion} ✅\n\nالرجاء كتابة اسم الشخص الذي تريد البحث عنه:`,
+                      }),
+                    }
+                  );
+                }
               }
               return;
             }

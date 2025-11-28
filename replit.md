@@ -4,6 +4,22 @@ This is a Mastra-based automation framework deployed on Replit. Mastra is a Type
 
 The application includes an electoral analysis agent with a corresponding workflow, along with Telegram webhook integration for bot interactions. It's designed to run autonomously with built-in durability, retry mechanisms, and real-time monitoring through Inngest's dashboard.
 
+# Recent Changes (November 28, 2025)
+
+## PDF Splitting Feature
+- **Added**: `splitPdfBySubcommitteeTool.ts` - Automatically splits PDF files into chunks (10 pages per chunk)
+- **Modified**: `searchElectoralDataTool.ts` - Now searches in split chunks for faster performance
+- **Modified**: `index.ts` (Telegram Trigger) - Automatically splits PDFs when user selects a center
+- **Benefit**: Faster search performance by dividing large PDFs into smaller, manageable chunks (145 chunks for مركز طما)
+
+## Implementation Details
+When a user selects a center (مركز طما, مركز طهطا, or قسم طهطا):
+1. System checks if PDF is already split
+2. If not, automatically splits the PDF into 10-page chunks
+3. Stores metadata about chunks and their page ranges in `attached_assets/split_pdfs/metadata.json`
+4. Subsequent searches use the split files for better performance
+5. Metadata caching prevents re-splitting on future selections
+
 # User Preferences
 
 Preferred communication style: Simple, everyday language.
@@ -43,7 +59,7 @@ Preferred communication style: Simple, everyday language.
 **Time-Based Triggers**: Cron expressions schedule workflows without external input using `registerCronTrigger`. Unlike webhooks, these are registered directly (not spread into apiRoutes array).
 
 **Implemented Triggers**:
-- Telegram webhooks (`telegramTriggers.ts`) - Bot message handling
+- Telegram webhooks (`telegramTriggers.ts`) - Bot message handling with automatic PDF splitting
 - Slack webhooks (`slackTriggers.ts`) - Channel message processing
 - Example connector pattern (`exampleConnectorTrigger.ts`) - Template for adding new integrations
 
@@ -69,6 +85,21 @@ Preferred communication style: Simple, everyday language.
 **Scoping**: Memory can be thread-scoped (per conversation) or resource-scoped (per user across all conversations).
 
 **Rationale**: Multi-tier memory enables agents to maintain both short-term conversational context and long-term semantic knowledge. Vector-based recall scales better than storing all messages in context windows.
+
+## PDF Processing Pipeline
+
+**Split Mechanism**: Large PDF files are automatically split into chunks (10 pages each) when first accessed. This enables:
+- Faster search performance through smaller document processing
+- Reduced API costs (smaller files = fewer tokens)
+- Better relevance in search results
+- Metadata caching to avoid re-processing
+
+**Implementation**:
+- `splitPdfBySubcommitteeTool.ts`: Core splitting logic using PDFDocument from pdf-lib
+- `searchElectoralDataTool.ts`: Enhanced to search split chunks with early termination (stops after first chunk with results)
+- Metadata storage: `attached_assets/split_pdfs/metadata.json` tracks all chunks and their page ranges
+
+**Rationale**: PDF splitting improves both performance and cost when dealing with large documents. The metadata caching ensures subsequent operations are instantaneous.
 
 ## Logging & Observability
 
@@ -112,7 +143,10 @@ Preferred communication style: Simple, everyday language.
 
 ## Document Processing
 
-- **PDF Processing** (`pdf-lib`, `@pdf-lib/fontkit`, `pdf-parse`): PDF generation and parsing capabilities for document handling workflows
+- **PDF Processing** (`pdf-lib`, `@pdf-lib/fontkit`, `pdf-parse`): PDF generation, parsing, and splitting capabilities
+  - `pdf-lib`: PDF creation and manipulation
+  - `@pdf-lib/fontkit`: Font support for PDF generation
+  - `pdf-parse`: PDF text extraction for analysis
 
 ## Logging & Utilities
 
