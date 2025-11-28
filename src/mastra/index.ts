@@ -11,14 +11,29 @@ import { inngest, inngestServe } from "./inngest";
 
 import { electoralAgent } from "./agents/electoralAgent";
 import { electoralWorkflow } from "./workflows/electoralWorkflow";
-import { registerTelegramTrigger } from "../triggers/telegramTriggers";
+import { registerApiRoute } from "./inngest";
 import { 
   getConversationState, 
   setSelectedRegion, 
+  setNationalId,
+  setSubcommitteeNumber,
+  setVoterNumber,
+  setPollingStation,
+  confirmData,
   getCurrentRegion,
-  resetConversation 
+  getCurrentStep,
+  getVoterData,
+  resetConversation,
+  isValidNationalId,
+  isValidNumber
 } from "./agents/conversationState";
-import { isCenterSplit, splitCenterPdf } from "./tools/splitPdfBySubcommitteeTool";
+import { generateElectoralInquiryPdf } from "./tools/generateElectoralPdfTool";
+
+if (!process.env.TELEGRAM_BOT_TOKEN) {
+  console.warn(
+    "Trying to initialize Telegram triggers without TELEGRAM_BOT_TOKEN. Can you confirm that the Telegram integration is configured correctly?",
+  );
+}
 
 class ProductionPinoLogger extends MastraLogger {
   protected logger: pino.Logger;
@@ -61,6 +76,334 @@ class ProductionPinoLogger extends MastraLogger {
   }
 }
 
+async function sendTelegramMessage(botToken: string, chatId: number, text: string, replyMarkup?: any) {
+  const body: any = {
+    chat_id: chatId,
+    text: text,
+  };
+  if (replyMarkup) {
+    body.reply_markup = replyMarkup;
+  }
+  await fetch(
+    `https://api.telegram.org/bot${botToken}/sendMessage`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }
+  );
+}
+
+async function sendTelegramDocument(botToken: string, chatId: number, pdfBuffer: Buffer, fileName: string, caption?: string) {
+  const uint8Array = new Uint8Array(pdfBuffer);
+  const blob = new Blob([uint8Array], { type: "application/pdf" });
+  const formData = new FormData();
+  formData.append("chat_id", chatId.toString());
+  formData.append("document", blob, fileName);
+  if (caption) {
+    formData.append("caption", caption);
+  }
+  await fetch(
+    `https://api.telegram.org/bot${botToken}/sendDocument`,
+    {
+      method: "POST",
+      body: formData,
+    }
+  );
+}
+
+async function handleTelegramMessage(mastra: Mastra, chatId: number, message: string) {
+  const logger = mastra.getLogger();
+  const botToken = process.env.TELEGRAM_BOT_TOKEN;
+
+  if (!botToken) {
+    logger?.error("❌ TELEGRAM_BOT_TOKEN not set");
+    return;
+  }
+
+  try {
+    logger?.info("🚀 Processing message...");
+    logger?.info("💬 Chat ID:", chatId);
+    logger?.info("📝 Message:", message);
+
+    if (message === "/start" || message === "ابدأ" || message === "بداية") {
+      resetConversation(chatId);
+      await sendTelegramMessage(
+        botToken,
+        chatId,
+        `مرحباً بك في خدمة الاستعلام عن اللجان الانتخابية! 🗳️\n\nاختر المركز:\n1️⃣ مركز طما\n2️⃣ مركز طهطا\n3️⃣ قسم طهطا\n\nأرسل رقم الاختيار أو اسم المركز.`
+      );
+      return;
+    }
+
+    const currentStep = getCurrentStep(chatId);
+    logger?.info("📍 Current step:", currentStep);
+
+    if (currentStep === 'select_region') {
+      const regionMap: Record<string, string> = {
+        "1": "مركز طما",
+        "2": "مركز طهطا", 
+        "3": "قسم طهطا",
+        "مركز طما": "مركز طما",
+        "طما": "مركز طما",
+        "مركز طهطا": "مركز طهطا",
+        "طهطا": "مركز طهطا",
+        "قسم طهطا": "قسم طهطا",
+      };
+
+      const selectedRegion = regionMap[message];
+      
+      if (selectedRegion) {
+        setSelectedRegion(chatId, selectedRegion);
+        logger?.info("📍 Region selected:", selectedRegion);
+        
+        await sendTelegramMessage(
+          botToken,
+          chatId,
+          `تم اختيار ${selectedRegion} ✅\n\n📝 الرجاء إدخال الرقم القومي (14 رقم):`
+        );
+      } else {
+        await sendTelegramMessage(
+          botToken,
+          chatId,
+          `⚠️ اختيار غير صحيح.\n\nالرجاء اختيار المركز:\n1️⃣ مركز طما\n2️⃣ مركز طهطا\n3️⃣ قسم طهطا`
+        );
+      }
+      return;
+    }
+
+    if (currentStep === 'enter_national_id') {
+      const cleanedId = message.replace(/\s/g, '');
+      
+      if (!isValidNationalId(cleanedId)) {
+        await sendTelegramMessage(
+          botToken,
+          chatId,
+          `⚠️ الرقم القومي يجب أن يكون 14 رقم.\n\nالرجاء إدخال الرقم القومي بشكل صحيح:`
+        );
+        return;
+      }
+      
+      setNationalId(chatId, cleanedId);
+      logger?.info("🆔 National ID set:", cleanedId);
+      
+      await sendTelegramMessage(
+        botToken,
+        chatId,
+        `✅ تم تسجيل الرقم القومي.\n\n📝 الرجاء إدخال رقم اللجنة الفرعية:`
+      );
+      return;
+    }
+
+    if (currentStep === 'enter_subcommittee') {
+      const cleanedNum = message.replace(/\s/g, '');
+      
+      if (!isValidNumber(cleanedNum)) {
+        await sendTelegramMessage(
+          botToken,
+          chatId,
+          `⚠️ رقم اللجنة الفرعية يجب أن يكون أرقام فقط.\n\nالرجاء إدخال رقم اللجنة الفرعية:`
+        );
+        return;
+      }
+      
+      setSubcommitteeNumber(chatId, cleanedNum);
+      logger?.info("📋 Subcommittee number set:", cleanedNum);
+      
+      await sendTelegramMessage(
+        botToken,
+        chatId,
+        `✅ تم تسجيل رقم اللجنة الفرعية.\n\n📝 الرجاء إدخال رقمك في كشوف الناخبين:`
+      );
+      return;
+    }
+
+    if (currentStep === 'enter_voter_number') {
+      const cleanedNum = message.replace(/\s/g, '');
+      
+      if (!isValidNumber(cleanedNum)) {
+        await sendTelegramMessage(
+          botToken,
+          chatId,
+          `⚠️ رقمك في الكشوف يجب أن يكون أرقام فقط.\n\nالرجاء إدخال رقمك في كشوف الناخبين:`
+        );
+        return;
+      }
+      
+      setVoterNumber(chatId, cleanedNum);
+      logger?.info("📊 Voter number set:", cleanedNum);
+      
+      await sendTelegramMessage(
+        botToken,
+        chatId,
+        `✅ تم تسجيل رقمك في الكشوف.\n\n📝 الرجاء إدخال اسم مركزك الانتخابي:`
+      );
+      return;
+    }
+
+    if (currentStep === 'enter_polling_station') {
+      if (message.length < 3) {
+        await sendTelegramMessage(
+          botToken,
+          chatId,
+          `⚠️ اسم المركز الانتخابي قصير جداً.\n\nالرجاء إدخال اسم مركزك الانتخابي:`
+        );
+        return;
+      }
+      
+      setPollingStation(chatId, message);
+      logger?.info("🏢 Polling station set:", message);
+      
+      const voterData = getVoterData(chatId);
+      const currentRegion = getCurrentRegion(chatId);
+      
+      const reviewMessage = `📋 مراجعة البيانات:\n\n` +
+        `🏛️ المركز: ${currentRegion}\n` +
+        `🆔 الرقم القومي: ${voterData.nationalId}\n` +
+        `📋 رقم اللجنة الفرعية: ${voterData.subcommitteeNumber}\n` +
+        `📊 رقمك في الكشوف: ${voterData.voterNumber}\n` +
+        `🏢 المركز الانتخابي: ${voterData.pollingStation}\n\n` +
+        `هل البيانات صحيحة؟`;
+      
+      await sendTelegramMessage(
+        botToken,
+        chatId,
+        reviewMessage,
+        {
+          inline_keyboard: [
+            [
+              { text: "✅ تأكيد", callback_data: "confirm_data" },
+              { text: "❌ إلغاء وبدء من جديد", callback_data: "cancel_data" }
+            ]
+          ]
+        }
+      );
+      return;
+    }
+
+    if (currentStep === 'review_data') {
+      if (message === "تأكيد" || message === "نعم" || message === "confirm") {
+        await generateAndSendPdf(mastra, chatId);
+      } else if (message === "إلغاء" || message === "لا" || message === "cancel") {
+        resetConversation(chatId);
+        await sendTelegramMessage(
+          botToken,
+          chatId,
+          `تم الإلغاء.\n\nللبدء من جديد، أرسل /start`
+        );
+      } else {
+        await sendTelegramMessage(
+          botToken,
+          chatId,
+          `الرجاء الضغط على زر "تأكيد" أو "إلغاء"`
+        );
+      }
+      return;
+    }
+
+    await sendTelegramMessage(
+      botToken,
+      chatId,
+      `للبدء، أرسل /start`
+    );
+
+  } catch (error) {
+    logger?.error("❌ Error processing message:", error);
+    if (botToken) {
+      await sendTelegramMessage(
+        botToken,
+        chatId,
+        "عذراً، حدث خطأ أثناء معالجة طلبك. حاول مرة أخرى."
+      );
+    }
+  }
+}
+
+async function generateAndSendPdf(mastra: Mastra, chatId: number) {
+  const logger = mastra.getLogger();
+  const botToken = process.env.TELEGRAM_BOT_TOKEN;
+  
+  if (!botToken) return;
+
+  confirmData(chatId);
+  const voterData = getVoterData(chatId);
+  const currentRegion = getCurrentRegion(chatId);
+  
+  await sendTelegramMessage(botToken, chatId, "⏳ جاري إنشاء ملف الاستعلام...");
+  
+  try {
+    const pdfResult = await generateElectoralInquiryPdf({
+      nationalId: voterData.nationalId || "",
+      pollingStation: voterData.pollingStation || "",
+      governorate: "سوهاج",
+      center: currentRegion || "",
+      address: "شارع الجمهورية بجوار سنترال جهينة الغربية",
+      subcommitteeNumber: voterData.subcommitteeNumber || "",
+      voterNumber: voterData.voterNumber || "",
+      votingDate: "10 - 11 نوفمبر",
+      attendanceDensity: "متاحة على التطبيق ايام الاقتراع",
+      individualCircle: "طهطا",
+      listCircle: "دائرة قطاع شمال ووسط وجنوب الصعيد",
+    });
+    
+    if (pdfResult.success && pdfResult.pdfBuffer) {
+      await sendTelegramDocument(
+        botToken,
+        chatId,
+        pdfResult.pdfBuffer,
+        `استعلام_${voterData.nationalId}.pdf`,
+        "✅ تم إنشاء ملف الاستعلام بنجاح"
+      );
+    } else {
+      await sendTelegramMessage(botToken, chatId, "❌ حدث خطأ أثناء إنشاء الملف");
+    }
+  } catch (error) {
+    logger?.error("❌ Error generating PDF:", error);
+    await sendTelegramMessage(botToken, chatId, "❌ حدث خطأ أثناء إنشاء الملف");
+  }
+  
+  resetConversation(chatId);
+  await sendTelegramMessage(
+    botToken,
+    chatId,
+    `للاستعلام مرة أخرى، أرسل /start`
+  );
+}
+
+async function handleTelegramCallback(mastra: Mastra, chatId: number, callbackData: string, callbackQueryId: string) {
+  const logger = mastra.getLogger();
+  const botToken = process.env.TELEGRAM_BOT_TOKEN;
+
+  if (!botToken) {
+    logger?.error("❌ TELEGRAM_BOT_TOKEN not set");
+    return;
+  }
+
+  try {
+    await fetch(
+      `https://api.telegram.org/bot${botToken}/answerCallbackQuery`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ callback_query_id: callbackQueryId }),
+      }
+    );
+
+    if (callbackData === "confirm_data") {
+      await generateAndSendPdf(mastra, chatId);
+    } else if (callbackData === "cancel_data") {
+      resetConversation(chatId);
+      await sendTelegramMessage(
+        botToken,
+        chatId,
+        `تم الإلغاء.\n\nللبدء من جديد، أرسل /start`
+      );
+    }
+  } catch (error) {
+    logger?.error("❌ Error handling callback:", error);
+  }
+}
+
 export const mastra = new Mastra({
   workflows: { electoralWorkflow },
   agents: { electoralAgent },
@@ -72,9 +415,6 @@ export const mastra = new Mastra({
     }),
   },
   bundler: {
-    // A few dependencies are not properly picked up by
-    // the bundler if they are not added directly to the
-    // entrypoint.
     externals: [
       "@slack/web-api",
       "inngest",
@@ -82,7 +422,6 @@ export const mastra = new Mastra({
       "hono",
       "hono/streaming",
     ],
-    // sourcemaps are good for debugging.
     sourcemap: true,
   },
   server: {
@@ -103,12 +442,9 @@ export const mastra = new Mastra({
           });
           if (error instanceof MastraError) {
             if (error.id === "AGENT_MEMORY_MISSING_RESOURCE_ID") {
-              // This is typically a non-retirable error. It means that the request was not
-              // setup correctly to pass in the necessary parameters.
               throw new NonRetriableError(error.message, { cause: error });
             }
           } else if (error instanceof z.ZodError) {
-            // Validation errors are never retriable.
             throw new NonRetriableError(error.message, { cause: error });
           }
 
@@ -123,192 +459,32 @@ export const mastra = new Mastra({
         createHandler: async ({ mastra }) => inngestServe({ mastra, inngest }),
       },
 
-      ...registerTelegramTrigger({
-        triggerType: "telegram/message",
-        handler: async (mastra, triggerInfo) => {
+      registerApiRoute("/webhooks/telegram/action", {
+        method: "POST",
+        handler: async (c) => {
+          const mastra = c.get("mastra");
           const logger = mastra.getLogger();
-          logger?.info("📱 [Telegram Trigger] Received message:", triggerInfo);
-
-          const chatId = triggerInfo.payload.message.chat.id;
-          const message = triggerInfo.params.message;
-
           try {
-            logger?.info("🚀 Processing message with agent directly...");
-            logger?.info("💬 Chat ID:", chatId);
-            
-            const regionMap: Record<string, string> = {
-              "1": "مركز طما",
-              "2": "مركز طهطا", 
-              "3": "قسم طهطا",
-              "مركز طما": "مركز طما",
-              "طما": "مركز طما",
-              "مركز طهطا": "مركز طهطا",
-              "طهطا": "مركز طهطا",
-              "قسم طهطا": "قسم طهطا",
-            };
+            const payload = await c.req.json();
+            logger?.info("📱 [Telegram] payload", payload);
 
-            const normalizedMessage = message.trim();
-            const selectedRegion = regionMap[normalizedMessage];
-            
-            if (selectedRegion) {
-              setSelectedRegion(chatId, selectedRegion);
-              logger?.info("📍 Region selected:", selectedRegion);
-              
-              const botToken = process.env.TELEGRAM_BOT_TOKEN;
-              
-              if (!isCenterSplit(selectedRegion)) {
-                logger?.info("📂 [Telegram Trigger] Splitting PDF for region:", selectedRegion);
-                
-                if (botToken) {
-                  await fetch(
-                    `https://api.telegram.org/bot${botToken}/sendMessage`,
-                    {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({
-                        chat_id: chatId,
-                        text: `تم اختيار ${selectedRegion} ✅\n\n⏳ جاري تجهيز الملفات... يرجى الانتظار...`,
-                      }),
-                    }
-                  );
-                }
-                
-                try {
-                  const splitResult = await splitCenterPdf(selectedRegion, logger);
-                  
-                  logger?.info("✅ [Telegram Trigger] Split result:", splitResult);
-                  
-                  if (botToken) {
-                    await fetch(
-                      `https://api.telegram.org/bot${botToken}/sendMessage`,
-                      {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                          chat_id: chatId,
-                          text: `✅ تم تجهيز ${splitResult.chunksCount} جزء.\n\nالرجاء كتابة اسم الشخص الذي تريد البحث عنه:`,
-                        }),
-                      }
-                    );
-                  }
-                } catch (error) {
-                  logger?.error("❌ [Telegram Trigger] Error splitting PDF:", error);
-                  if (botToken) {
-                    await fetch(
-                      `https://api.telegram.org/bot${botToken}/sendMessage`,
-                      {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                          chat_id: chatId,
-                          text: `تم اختيار ${selectedRegion} ✅\n\nالرجاء كتابة اسم الشخص الذي تريد البحث عنه:`,
-                        }),
-                      }
-                    );
-                  }
-                }
-              } else {
-                if (botToken) {
-                  await fetch(
-                    `https://api.telegram.org/bot${botToken}/sendMessage`,
-                    {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({
-                        chat_id: chatId,
-                        text: `تم اختيار ${selectedRegion} ✅\n\nالرجاء كتابة اسم الشخص الذي تريد البحث عنه:`,
-                      }),
-                    }
-                  );
-                }
+            if (payload.message) {
+              const chatId = payload.message.chat.id;
+              const message = payload.message.text?.trim() || "";
+              await handleTelegramMessage(mastra, chatId, message);
+            } else if (payload.callback_query) {
+              const chatId = payload.callback_query.message?.chat?.id;
+              const callbackData = payload.callback_query.data;
+              const callbackQueryId = payload.callback_query.id;
+              if (chatId) {
+                await handleTelegramCallback(mastra, chatId, callbackData, callbackQueryId);
               }
-              return;
             }
 
-            if (normalizedMessage === "/start" || normalizedMessage === "ابدأ" || normalizedMessage === "بداية") {
-              resetConversation(chatId);
-              const botToken = process.env.TELEGRAM_BOT_TOKEN;
-              if (botToken) {
-                await fetch(
-                  `https://api.telegram.org/bot${botToken}/sendMessage`,
-                  {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                      chat_id: chatId,
-                      text: `مرحباً بك في خدمة الاستعلام عن اللجان الانتخابية! 🗳️\n\nاختر المنطقة التي تريد البحث فيها:\n1️⃣ مركز طما\n2️⃣ مركز طهطا\n3️⃣ قسم طهطا\n\nأرسل رقم الاختيار أو اسم المنطقة.`,
-                    }),
-                  }
-                );
-              }
-              return;
-            }
-
-            const currentRegion = getCurrentRegion(chatId);
-            logger?.info("📍 Current region from state:", currentRegion);
-            
-            if (!currentRegion) {
-              const botToken = process.env.TELEGRAM_BOT_TOKEN;
-              if (botToken) {
-                await fetch(
-                  `https://api.telegram.org/bot${botToken}/sendMessage`,
-                  {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                      chat_id: chatId,
-                      text: `مرحباً بك في خدمة الاستعلام عن اللجان الانتخابية! 🗳️\n\nاختر المنطقة التي تريد البحث فيها:\n1️⃣ مركز طما\n2️⃣ مركز طهطا\n3️⃣ قسم طهطا\n\nأرسل رقم الاختيار أو اسم المنطقة.`,
-                    }),
-                  }
-                );
-              }
-              return;
-            }
-
-            const contextMessage = `المستخدم اختار المنطقة: ${currentRegion}. الآن يريد البحث عن الاسم التالي: ${message}. استخدم أداة البحث للبحث عن هذا الاسم في المنطقة المحددة.`;
-            
-            logger?.info("📝 Context message:", contextMessage);
-            
-            const response = await electoralAgent.generate(contextMessage, {
-              maxSteps: 10,
-            });
-
-            const agentResponse = response.text || "عذراً، لم أتمكن من معالجة طلبك.";
-            logger?.info("✅ Agent response:", agentResponse.substring(0, 200));
-
-            const botToken = process.env.TELEGRAM_BOT_TOKEN;
-            if (botToken) {
-              const sendResult = await fetch(
-                `https://api.telegram.org/bot${botToken}/sendMessage`,
-                {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    chat_id: chatId,
-                    text: agentResponse,
-                    parse_mode: "Markdown",
-                  }),
-                }
-              );
-              const result = await sendResult.json();
-              logger?.info("📨 Message sent:", result);
-            }
+            return c.text("OK", 200);
           } catch (error) {
-            logger?.error("❌ Error processing message:", error);
-            const botToken = process.env.TELEGRAM_BOT_TOKEN;
-            if (botToken) {
-              await fetch(
-                `https://api.telegram.org/bot${botToken}/sendMessage`,
-                {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    chat_id: chatId,
-                    text: "عذراً، حدث خطأ أثناء معالجة طلبك. حاول مرة أخرى.",
-                  }),
-                }
-              );
-            }
+            logger?.error("Error handling Telegram webhook:", error);
+            return c.text("Internal Server Error", 500);
           }
         },
       }),

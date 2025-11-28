@@ -5,18 +5,227 @@ import fontkit from "@pdf-lib/fontkit";
 import * as fs from "fs";
 import * as path from "path";
 
-function reverseArabicText(text: string): string {
-  return text.split('').reverse().join('');
+interface ElectoralInquiryData {
+  nationalId: string;
+  pollingStation: string;
+  governorate: string;
+  center: string;
+  address: string;
+  subcommitteeNumber: string;
+  voterNumber: string;
+  votingDate: string;
+  attendanceDensity: string;
+  individualCircle: string;
+  listCircle: string;
+}
+
+function getRandomDate(): string {
+  const days = [18, 19, 20, 21, 22];
+  const randomDay = days[Math.floor(Math.random() * days.length)];
+  const hours = Math.floor(Math.random() * 12) + 1;
+  const minutes = Math.floor(Math.random() * 60);
+  const ampm = Math.random() > 0.5 ? 'PM' : 'AM';
+  return `11/${randomDay}/25, ${hours}:${minutes.toString().padStart(2, '0')} ${ampm}`;
+}
+
+export async function generateElectoralInquiryPdf(data: ElectoralInquiryData): Promise<{
+  success: boolean;
+  pdfPath: string;
+  pdfBuffer: Buffer | null;
+  message: string;
+}> {
+  try {
+    const pdfDoc = await PDFDocument.create();
+    pdfDoc.registerFontkit(fontkit);
+    
+    const page = pdfDoc.addPage([595.28, 841.89]);
+    const { width, height } = page.getSize();
+    
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+
+    const randomDate = getRandomDate();
+    page.drawText(randomDate, {
+      x: 30,
+      y: height - 30,
+      size: 10,
+      font: font,
+      color: rgb(0.3, 0.3, 0.3),
+    });
+
+    page.drawText("1/1", {
+      x: width - 40,
+      y: 30,
+      size: 10,
+      font: font,
+      color: rgb(0.3, 0.3, 0.3),
+    });
+
+    const headerY = height - 60;
+    page.drawText("ةيباختنلاا ناجللا نع ملاعتسلاا ةمدخ", {
+      x: width / 2 - 100,
+      y: headerY,
+      size: 12,
+      font: font,
+      color: rgb(0.3, 0.3, 0.3),
+    });
+
+    const greenBoxY = height - 120;
+    page.drawRectangle({
+      x: 40,
+      y: greenBoxY - 30,
+      width: width - 80,
+      height: 40,
+      color: rgb(0.9, 0.97, 0.9),
+      borderColor: rgb(0.6, 0.8, 0.6),
+      borderWidth: 1,
+    });
+
+    const nationalIdDisplay = `(${data.nationalId})`;
+    page.drawText(`باختنلاا قح هل ${nationalIdDisplay} يموقلا مقرلا`, {
+      x: width / 2 - 80,
+      y: greenBoxY - 18,
+      size: 11,
+      font: font,
+      color: rgb(0.2, 0.5, 0.2),
+    });
+
+    const tableStartY = greenBoxY - 80;
+    const tableWidth = width - 80;
+    const tableX = 40;
+    const rowHeight = 35;
+    const numRows = 10;
+    const tableHeight = rowHeight * numRows + 40;
+
+    page.drawRectangle({
+      x: tableX,
+      y: tableStartY - tableHeight + 40,
+      width: tableWidth,
+      height: 35,
+      color: rgb(0.2, 0.4, 0.7),
+    });
+
+    page.drawText("ةيباختنلاا ةنجللا تانايب", {
+      x: tableX + tableWidth / 2 - 60,
+      y: tableStartY + 8,
+      size: 14,
+      font: boldFont,
+      color: rgb(1, 1, 1),
+    });
+
+    const tableData = [
+      { label: ":يباختنلاا كزكرم", value: data.pollingStation },
+      { label: ":ةظفاحملا", value: data.governorate },
+      { label: ":زكرملا", value: data.center },
+      { label: ":ناونعلا", value: data.address },
+      { label: ":ةيعرفلا ةنجللا مقر", value: data.subcommitteeNumber },
+      { label: ":ةيباختنلاا فوشكلا يف كمقر", value: data.voterNumber },
+      { label: ":تيوصتلا خيرات", value: data.votingDate },
+      { label: ":روضحلا ةفاثك", value: data.attendanceDensity },
+      { label: ":يدرفلا ةرئاد", value: data.individualCircle },
+      { label: ":ةمئاقلا ةرئاد", value: data.listCircle },
+    ];
+
+    const labelColWidth = 150;
+    const valueColWidth = tableWidth - labelColWidth;
+
+    for (let i = 0; i < numRows; i++) {
+      const rowY = tableStartY - (i + 1) * rowHeight;
+      
+      if (i % 2 === 1) {
+        page.drawRectangle({
+          x: tableX,
+          y: rowY - rowHeight + 10,
+          width: tableWidth,
+          height: rowHeight,
+          color: rgb(0.97, 0.97, 0.97),
+        });
+      }
+
+      page.drawLine({
+        start: { x: tableX, y: rowY - rowHeight + 10 },
+        end: { x: tableX + tableWidth, y: rowY - rowHeight + 10 },
+        thickness: 0.5,
+        color: rgb(0.8, 0.8, 0.8),
+      });
+
+      page.drawText(tableData[i].label, {
+        x: tableX + tableWidth - labelColWidth + 10,
+        y: rowY - 18,
+        size: 10,
+        font: boldFont,
+        color: rgb(0.3, 0.3, 0.3),
+      });
+
+      page.drawText(tableData[i].value, {
+        x: tableX + valueColWidth - 10 - (tableData[i].value.length * 4),
+        y: rowY - 18,
+        size: 10,
+        font: font,
+        color: rgb(0.2, 0.2, 0.2),
+      });
+    }
+
+    page.drawRectangle({
+      x: tableX,
+      y: tableStartY - tableHeight + 10,
+      width: tableWidth,
+      height: tableHeight,
+      borderColor: rgb(0.7, 0.7, 0.7),
+      borderWidth: 1,
+    });
+
+    page.drawLine({
+      start: { x: tableX + tableWidth - labelColWidth, y: tableStartY },
+      end: { x: tableX + tableWidth - labelColWidth, y: tableStartY - tableHeight + 10 },
+      thickness: 0.5,
+      color: rgb(0.8, 0.8, 0.8),
+    });
+
+    page.drawText("https://www.elections.eg/inquiry", {
+      x: 30,
+      y: 50,
+      size: 8,
+      font: font,
+      color: rgb(0.3, 0.3, 0.5),
+    });
+
+    const pdfBytes = await pdfDoc.save();
+    const pdfBuffer = Buffer.from(pdfBytes);
+
+    const outputDir = "generated_pdfs";
+    if (!fs.existsSync(outputDir)) {
+      fs.mkdirSync(outputDir, { recursive: true });
+    }
+    
+    const fileName = `electoral_${data.nationalId}_${Date.now()}.pdf`;
+    const filePath = path.join(outputDir, fileName);
+    fs.writeFileSync(filePath, pdfBytes);
+
+    return {
+      success: true,
+      pdfPath: filePath,
+      pdfBuffer: pdfBuffer,
+      message: `تم إنشاء ملف الاستعلام بنجاح`,
+    };
+  } catch (error) {
+    console.error("❌ [generateElectoralPdf] Error creating PDF:", error);
+    return {
+      success: false,
+      pdfPath: "",
+      pdfBuffer: null,
+      message: `حدث خطأ أثناء إنشاء ملف PDF: ${error}`,
+    };
+  }
 }
 
 export const generateElectoralPdfTool = createTool({
   id: "generate-electoral-pdf",
   description: `أداة لإنشاء ملف PDF يحتوي على بيانات اللجنة الانتخابية بالتنسيق الرسمي.
-  استخدم هذه الأداة بعد العثور على بيانات الناخب وبعد التحقق من الرقم القومي.`,
+  استخدم هذه الأداة بعد جمع كل بيانات الناخب.`,
 
   inputSchema: z.object({
     nationalId: z.string().describe("الرقم القومي للناخب"),
-    name: z.string().describe("اسم الناخب"),
     pollingStation: z.string().describe("مركز الانتخاب"),
     governorate: z.string().describe("المحافظة"),
     center: z.string().describe("المركز"),
@@ -40,172 +249,13 @@ export const generateElectoralPdfTool = createTool({
     const logger = mastra?.getLogger();
     logger?.info("📄 [generateElectoralPdf] Creating PDF with data:", context);
 
-    try {
-      const pdfDoc = await PDFDocument.create();
-      pdfDoc.registerFontkit(fontkit);
-      
-      const page = pdfDoc.addPage([595.28, 841.89]);
-      const { width, height } = page.getSize();
-      
-      const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-      const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-
-      page.drawText("Electoral Committee Inquiry", {
-        x: width / 2 - 100,
-        y: height - 50,
-        size: 18,
-        font: boldFont,
-        color: rgb(0, 0, 0),
-      });
-
-      page.drawText("خدمة الاستعلام عن اللجان الانتخابية", {
-        x: width / 2 - 80,
-        y: height - 75,
-        size: 14,
-        font: font,
-        color: rgb(0.3, 0.3, 0.3),
-      });
-
-      page.drawLine({
-        start: { x: 50, y: height - 90 },
-        end: { x: width - 50, y: height - 90 },
-        thickness: 1,
-        color: rgb(0, 0, 0),
-      });
-
-      const nationalIdText = `National ID: ${context.nationalId}`;
-      page.drawText(nationalIdText, {
-        x: 50,
-        y: height - 120,
-        size: 12,
-        font: boldFont,
-        color: rgb(0, 0, 0),
-      });
-
-      page.drawText("له حق الانتخاب", {
-        x: width - 150,
-        y: height - 120,
-        size: 12,
-        font: font,
-        color: rgb(0, 0.5, 0),
-      });
-
-      page.drawRectangle({
-        x: 40,
-        y: height - 500,
-        width: width - 80,
-        height: 360,
-        borderColor: rgb(0, 0, 0),
-        borderWidth: 1,
-      });
-
-      page.drawText("Electoral Committee Data", {
-        x: width / 2 - 70,
-        y: height - 160,
-        size: 14,
-        font: boldFont,
-        color: rgb(0, 0, 0),
-      });
-
-      const fields = [
-        { label: "Polling Station", value: context.pollingStation, labelAr: "مركز الانتخاب" },
-        { label: "Governorate", value: context.governorate, labelAr: "المحافظة" },
-        { label: "Center", value: context.center, labelAr: "المركز" },
-        { label: "Address", value: context.address, labelAr: "العنوان" },
-        { label: "Subcommittee No.", value: context.subcommitteeNumber, labelAr: "رقم اللجنة الفرعية" },
-        { label: "Voter No.", value: context.voterNumber, labelAr: "رقمك في الكشوف" },
-        { label: "Voting Date", value: context.votingDate, labelAr: "تاريخ التصويت" },
-        { label: "Attendance", value: context.attendanceDensity, labelAr: "كثافة الحضور" },
-        { label: "Individual Circle", value: context.individualCircle, labelAr: "دائرة الفردي" },
-        { label: "List Circle", value: context.listCircle, labelAr: "دائرة القائمة" },
-      ];
-
-      let yPosition = height - 190;
-      const rowHeight = 30;
-
-      fields.forEach((field, index) => {
-        const y = yPosition - (index * rowHeight);
-        
-        if (index % 2 === 0) {
-          page.drawRectangle({
-            x: 45,
-            y: y - 10,
-            width: width - 90,
-            height: rowHeight,
-            color: rgb(0.95, 0.95, 0.95),
-          });
-        }
-
-        page.drawText(`${field.label}:`, {
-          x: 55,
-          y: y,
-          size: 10,
-          font: boldFont,
-          color: rgb(0, 0, 0),
-        });
-
-        page.drawText(field.value || "-", {
-          x: 200,
-          y: y,
-          size: 10,
-          font: font,
-          color: rgb(0.2, 0.2, 0.2),
-        });
-
-        page.drawText(field.labelAr, {
-          x: width - 150,
-          y: y,
-          size: 10,
-          font: font,
-          color: rgb(0.5, 0.5, 0.5),
-        });
-      });
-
-      const timestamp = new Date().toISOString();
-      page.drawText(`Generated: ${timestamp}`, {
-        x: 50,
-        y: 50,
-        size: 8,
-        font: font,
-        color: rgb(0.5, 0.5, 0.5),
-      });
-
-      page.drawText("https://www.elections.eg/inquiry", {
-        x: 50,
-        y: 35,
-        size: 8,
-        font: font,
-        color: rgb(0.3, 0.3, 0.7),
-      });
-
-      const pdfBytes = await pdfDoc.save();
-      const pdfBase64 = Buffer.from(pdfBytes).toString("base64");
-
-      const outputDir = "generated_pdfs";
-      if (!fs.existsSync(outputDir)) {
-        fs.mkdirSync(outputDir, { recursive: true });
-      }
-      
-      const fileName = `electoral_${context.nationalId}_${Date.now()}.pdf`;
-      const filePath = path.join(outputDir, fileName);
-      fs.writeFileSync(filePath, pdfBytes);
-
-      logger?.info(`✅ [generateElectoralPdf] PDF created successfully: ${filePath}`);
-
-      return {
-        success: true,
-        pdfPath: filePath,
-        pdfBase64,
-        message: `تم إنشاء ملف الاستعلام بنجاح`,
-      };
-    } catch (error) {
-      logger?.error("❌ [generateElectoralPdf] Error creating PDF:", error);
-      return {
-        success: false,
-        pdfPath: "",
-        pdfBase64: "",
-        message: `حدث خطأ أثناء إنشاء ملف PDF: ${error}`,
-      };
-    }
+    const result = await generateElectoralInquiryPdf(context);
+    
+    return {
+      success: result.success,
+      pdfPath: result.pdfPath,
+      pdfBase64: result.pdfBuffer ? result.pdfBuffer.toString("base64") : "",
+      message: result.message,
+    };
   },
 });
