@@ -29,6 +29,7 @@
     "@mastra/memory": "^0.15.5",
     "@mastra/pg": "^0.17.1",
     "@openrouter/ai-sdk-provider": "^0.4.6",
+    "@pdf-lib/fontkit": "^1.1.1",
     "@slack/web-api": "^7.9.3",
     "@types/pg": "^8.15.5",
     "ai": "^4.3.16",
@@ -36,6 +37,8 @@
     "exa-js": "^1.8.17",
     "inngest": "^3.40.2",
     "inngest-cli": "^1.11.5",
+    "pdf-lib": "^1.17.1",
+    "pdf-parse": "^2.4.5",
     "pino": "^9.9.4",
     "tsx": "^4.20.3",
     "zod": "^3.25.76"
