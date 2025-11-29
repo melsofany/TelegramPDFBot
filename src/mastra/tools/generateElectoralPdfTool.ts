@@ -34,16 +34,6 @@ function getRandomDate(): string {
   return `11/${randomDay}/25, ${hours}:${minutes.toString().padStart(2, '0')} ${ampm}`;
 }
 
-function reshapeArabicSegments(text: string): string {
-  if (!text) return '';
-  
-  const arabicPattern = /[\u0600-\u06FF\uFB50-\uFDFF\uFE70-\uFEFF]+/g;
-  
-  return text.replace(arabicPattern, (match) => {
-    return ArabicReshaper.convertArabic(match);
-  });
-}
-
 function processArabicText(text: string): string {
   if (!text) return '';
   
@@ -51,10 +41,7 @@ function processArabicText(text: string): string {
   if (!hasArabic) return text;
   
   try {
-    const reshaped = reshapeArabicSegments(text);
-    const embeddingLevels = bidi.getEmbeddingLevels(reshaped, 1);
-    const reordered = bidi.getReorderedString(reshaped, embeddingLevels);
-    return reordered;
+    return ArabicReshaper.convertArabic(text);
   } catch (error) {
     console.warn('Error processing Arabic text:', error);
     return text;
@@ -65,10 +52,7 @@ function processFullRtlString(text: string): string {
   if (!text) return '';
   
   try {
-    const reshaped = reshapeArabicSegments(text);
-    const embeddingLevels = bidi.getEmbeddingLevels(reshaped, 1);
-    const reordered = bidi.getReorderedString(reshaped, embeddingLevels);
-    return reordered;
+    return ArabicReshaper.convertArabic(text);
   } catch (error) {
     console.warn('Error processing full RTL string:', error);
     return text;
