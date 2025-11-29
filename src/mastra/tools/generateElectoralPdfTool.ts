@@ -187,7 +187,7 @@ export async function generateElectoralInquiryPdf(data: ElectoralInquiryData): P
       const labelText = tableData[i].label;
       const labelWidth = arabicBoldFont.widthOfTextAtSize(labelText, 10);
       page.drawText(labelText, {
-        x: tableX + tableWidth - labelWidth - 8,
+        x: tableX + tableWidth - labelColWidth - labelWidth - 5,
         y: rowY + 11,
         size: 10,
         font: arabicBoldFont,
@@ -197,7 +197,7 @@ export async function generateElectoralInquiryPdf(data: ElectoralInquiryData): P
       const valueText = tableData[i].value;
       const valueWidth = arabicFont.widthOfTextAtSize(valueText, 10);
       page.drawText(valueText, {
-        x: tableX + tableWidth - labelColWidth - valueWidth - 15,
+        x: tableX + (tableWidth - labelColWidth) - valueWidth - 5,
         y: rowY + 11,
         size: 10,
         font: arabicFont,
