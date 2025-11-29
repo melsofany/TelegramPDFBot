@@ -28,6 +28,7 @@ import {
   isValidNumber
 } from "./agents/conversationState";
 import { generateElectoralInquiryPdf } from "./tools/generateElectoralPdfTool";
+import { generateElectoralInquiryHtml } from "./tools/generateElectoralHtmlTool";
 
 if (!process.env.TELEGRAM_BOT_TOKEN) {
   console.warn(
@@ -332,7 +333,7 @@ async function generateAndSendPdf(mastra: Mastra, chatId: number) {
   await sendTelegramMessage(botToken, chatId, "⏳ جاري إنشاء ملف الاستعلام...");
   
   try {
-    const pdfResult = await generateElectoralInquiryPdf({
+    const htmlResult = await generateElectoralInquiryHtml({
       nationalId: voterData.nationalId || "",
       pollingStation: voterData.pollingStation || "",
       governorate: "سوهاج",
@@ -346,19 +347,20 @@ async function generateAndSendPdf(mastra: Mastra, chatId: number) {
       listCircle: "دائرة قطاع شمال ووسط وجنوب الصعيد",
     });
     
-    if (pdfResult.success && pdfResult.pdfBuffer) {
+    if (htmlResult.success) {
+      const fileBuffer = Buffer.from(htmlResult.htmlContent, 'utf-8');
       await sendTelegramDocument(
         botToken,
         chatId,
-        pdfResult.pdfBuffer,
-        `استعلام_${voterData.nationalId}.pdf`,
+        fileBuffer,
+        `استعلام_${voterData.nationalId}.html`,
         "✅ تم إنشاء ملف الاستعلام بنجاح"
       );
     } else {
       await sendTelegramMessage(botToken, chatId, "❌ حدث خطأ أثناء إنشاء الملف");
     }
   } catch (error) {
-    logger?.error("❌ Error generating PDF:", error);
+    logger?.error("❌ Error generating HTML:", error);
     await sendTelegramMessage(botToken, chatId, "❌ حدث خطأ أثناء إنشاء الملف");
   }
   
