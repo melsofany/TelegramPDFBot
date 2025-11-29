@@ -1,14 +1,12 @@
 interface VoterData {
   nationalId?: string;
-  subcommitteeNumber?: string;
-  voterNumber?: string;
-  pollingStation?: string;
+  pollingStationAddress?: string;
 }
 
 interface ConversationState {
   selectedRegion?: string;
   voterData: VoterData;
-  step: 'select_region' | 'enter_national_id' | 'enter_subcommittee' | 'enter_voter_number' | 'enter_polling_station' | 'review_data' | 'completed';
+  step: 'select_region' | 'enter_national_id' | 'enter_polling_station_address' | 'review_data' | 'completed';
   lastUpdate: number;
 }
 
@@ -53,33 +51,15 @@ export function setNationalId(chatId: string | number, nationalId: string) {
   const key = String(chatId);
   const state = getConversationState(chatId);
   state.voterData.nationalId = nationalId;
-  state.step = 'enter_subcommittee';
+  state.step = 'enter_polling_station_address';
   state.lastUpdate = Date.now();
   conversationStates.set(key, state);
 }
 
-export function setSubcommitteeNumber(chatId: string | number, subcommitteeNumber: string) {
+export function setPollingStationAddress(chatId: string | number, address: string) {
   const key = String(chatId);
   const state = getConversationState(chatId);
-  state.voterData.subcommitteeNumber = subcommitteeNumber;
-  state.step = 'enter_voter_number';
-  state.lastUpdate = Date.now();
-  conversationStates.set(key, state);
-}
-
-export function setVoterNumber(chatId: string | number, voterNumber: string) {
-  const key = String(chatId);
-  const state = getConversationState(chatId);
-  state.voterData.voterNumber = voterNumber;
-  state.step = 'enter_polling_station';
-  state.lastUpdate = Date.now();
-  conversationStates.set(key, state);
-}
-
-export function setPollingStation(chatId: string | number, pollingStation: string) {
-  const key = String(chatId);
-  const state = getConversationState(chatId);
-  state.voterData.pollingStation = pollingStation;
+  state.voterData.pollingStationAddress = address;
   state.step = 'review_data';
   state.lastUpdate = Date.now();
   conversationStates.set(key, state);

@@ -16,9 +16,7 @@ import {
   getConversationState, 
   setSelectedRegion, 
   setNationalId,
-  setSubcommitteeNumber,
-  setVoterNumber,
-  setPollingStation,
+  setPollingStationAddress,
   confirmData,
   getCurrentRegion,
   getCurrentStep,
@@ -204,69 +202,23 @@ async function handleTelegramMessage(mastra: Mastra, chatId: number, message: st
       await sendTelegramMessage(
         botToken,
         chatId,
-        `✅ تم تسجيل الرقم القومي.\n\n📝 الرجاء إدخال رقم اللجنة الفرعية:`
+        `✅ تم تسجيل الرقم القومي.\n\n📝 الرجاء إدخال عنوان المركز الانتخابي:`
       );
       return;
     }
 
-    if (currentStep === 'enter_subcommittee') {
-      const cleanedNum = message.replace(/\s/g, '');
-      
-      if (!isValidNumber(cleanedNum)) {
-        await sendTelegramMessage(
-          botToken,
-          chatId,
-          `⚠️ رقم اللجنة الفرعية يجب أن يكون أرقام فقط.\n\nالرجاء إدخال رقم اللجنة الفرعية:`
-        );
-        return;
-      }
-      
-      setSubcommitteeNumber(chatId, cleanedNum);
-      logger?.info("📋 Subcommittee number set:", cleanedNum);
-      
-      await sendTelegramMessage(
-        botToken,
-        chatId,
-        `✅ تم تسجيل رقم اللجنة الفرعية.\n\n📝 الرجاء إدخال رقمك في كشوف الناخبين:`
-      );
-      return;
-    }
-
-    if (currentStep === 'enter_voter_number') {
-      const cleanedNum = message.replace(/\s/g, '');
-      
-      if (!isValidNumber(cleanedNum)) {
-        await sendTelegramMessage(
-          botToken,
-          chatId,
-          `⚠️ رقمك في الكشوف يجب أن يكون أرقام فقط.\n\nالرجاء إدخال رقمك في كشوف الناخبين:`
-        );
-        return;
-      }
-      
-      setVoterNumber(chatId, cleanedNum);
-      logger?.info("📊 Voter number set:", cleanedNum);
-      
-      await sendTelegramMessage(
-        botToken,
-        chatId,
-        `✅ تم تسجيل رقمك في الكشوف.\n\n📝 الرجاء إدخال اسم مركزك الانتخابي:`
-      );
-      return;
-    }
-
-    if (currentStep === 'enter_polling_station') {
+    if (currentStep === 'enter_polling_station_address') {
       if (message.length < 3) {
         await sendTelegramMessage(
           botToken,
           chatId,
-          `⚠️ اسم المركز الانتخابي قصير جداً.\n\nالرجاء إدخال اسم مركزك الانتخابي:`
+          `⚠️ عنوان المركز قصير جداً.\n\nالرجاء إدخال عنوان المركز الانتخابي:`
         );
         return;
       }
       
-      setPollingStation(chatId, message);
-      logger?.info("🏢 Polling station set:", message);
+      setPollingStationAddress(chatId, message);
+      logger?.info("🏢 Polling station address set:", message);
       
       const voterData = getVoterData(chatId);
       const currentRegion = getCurrentRegion(chatId);
@@ -274,9 +226,7 @@ async function handleTelegramMessage(mastra: Mastra, chatId: number, message: st
       const reviewMessage = `📋 مراجعة البيانات:\n\n` +
         `🏛️ المركز: ${currentRegion}\n` +
         `🆔 الرقم القومي: ${voterData.nationalId}\n` +
-        `📋 رقم اللجنة الفرعية: ${voterData.subcommitteeNumber}\n` +
-        `📊 رقمك في الكشوف: ${voterData.voterNumber}\n` +
-        `🏢 المركز الانتخابي: ${voterData.pollingStation}\n\n` +
+        `📍 عنوان المركز الانتخابي: ${voterData.pollingStationAddress}\n\n` +
         `هل البيانات صحيحة؟`;
       
       await sendTelegramMessage(
@@ -348,12 +298,12 @@ async function generateAndSendPdf(mastra: Mastra, chatId: number) {
   try {
     const htmlResult = await generateElectoralInquiryHtml({
       nationalId: voterData.nationalId || "",
-      pollingStation: voterData.pollingStation || "",
+      pollingStation: voterData.pollingStationAddress || "",
       governorate: "سوهاج",
       center: currentRegion || "",
-      address: "شارع الجمهورية بجوار سنترال جهينة الغربية",
-      subcommitteeNumber: voterData.subcommitteeNumber || "",
-      voterNumber: voterData.voterNumber || "",
+      address: voterData.pollingStationAddress || "شارع الجمهورية",
+      subcommitteeNumber: "متاح يوم الاقتراع",
+      voterNumber: "متاح يوم الاقتراع",
       votingDate: "10 - 11 نوفمبر",
       attendanceDensity: "متاحة على التطبيق ايام الاقتراع",
       individualCircle: "طهطا",
