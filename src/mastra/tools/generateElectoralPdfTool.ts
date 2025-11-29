@@ -177,16 +177,6 @@ export async function generateElectoralInquiryPdf(data: ElectoralInquiryData): P
     for (let i = 0; i < numRows; i++) {
       const rowY = tableStartY - headerHeight - (i + 1) * rowHeight;
       
-      if (i % 2 === 1) {
-        page.drawRectangle({
-          x: tableX,
-          y: rowY,
-          width: tableWidth,
-          height: rowHeight,
-          color: rgb(0.96, 0.96, 0.96),
-        });
-      }
-      
       page.drawLine({
         start: { x: tableX, y: rowY + rowHeight },
         end: { x: tableX + tableWidth, y: rowY + rowHeight },
