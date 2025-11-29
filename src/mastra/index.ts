@@ -16,6 +16,7 @@ import {
   getConversationState, 
   setSelectedRegion, 
   setNationalId,
+  setPollingStationName,
   setPollingStationAddress,
   confirmData,
   getCurrentRegion,
@@ -202,7 +203,28 @@ async function handleTelegramMessage(mastra: Mastra, chatId: number, message: st
       await sendTelegramMessage(
         botToken,
         chatId,
-        `✅ تم تسجيل الرقم القومي.\n\n📝 الرجاء إدخال عنوان المركز الانتخابي:`
+        `✅ تم تسجيل الرقم القومي.\n\n📝 الرجاء إدخال اسم المركز الانتخابي:`
+      );
+      return;
+    }
+
+    if (currentStep === 'enter_polling_station_name') {
+      if (message.length < 3) {
+        await sendTelegramMessage(
+          botToken,
+          chatId,
+          `⚠️ اسم المركز قصير جداً.\n\nالرجاء إدخال اسم المركز الانتخابي:`
+        );
+        return;
+      }
+      
+      setPollingStationName(chatId, message);
+      logger?.info("🏢 Polling station name set:", message);
+      
+      await sendTelegramMessage(
+        botToken,
+        chatId,
+        `✅ تم تسجيل المركز الانتخابي.\n\n📍 الرجاء إدخال عنوان المركز الانتخابي:`
       );
       return;
     }
@@ -218,7 +240,7 @@ async function handleTelegramMessage(mastra: Mastra, chatId: number, message: st
       }
       
       setPollingStationAddress(chatId, message);
-      logger?.info("🏢 Polling station address set:", message);
+      logger?.info("📍 Polling station address set:", message);
       
       const voterData = getVoterData(chatId);
       const currentRegion = getCurrentRegion(chatId);
@@ -226,6 +248,7 @@ async function handleTelegramMessage(mastra: Mastra, chatId: number, message: st
       const reviewMessage = `📋 مراجعة البيانات:\n\n` +
         `🏛️ المركز: ${currentRegion}\n` +
         `🆔 الرقم القومي: ${voterData.nationalId}\n` +
+        `🏢 اسم المركز الانتخابي: ${voterData.pollingStationName}\n` +
         `📍 عنوان المركز الانتخابي: ${voterData.pollingStationAddress}\n\n` +
         `هل البيانات صحيحة؟`;
       
@@ -298,7 +321,7 @@ async function generateAndSendPdf(mastra: Mastra, chatId: number) {
   try {
     const htmlResult = await generateElectoralInquiryHtml({
       nationalId: voterData.nationalId || "",
-      pollingStation: voterData.pollingStationAddress || "",
+      pollingStation: voterData.pollingStationName || "",
       governorate: "سوهاج",
       center: currentRegion || "",
       address: voterData.pollingStationAddress || "شارع الجمهورية",

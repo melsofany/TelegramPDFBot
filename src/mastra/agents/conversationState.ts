@@ -1,12 +1,13 @@
 interface VoterData {
   nationalId?: string;
+  pollingStationName?: string;
   pollingStationAddress?: string;
 }
 
 interface ConversationState {
   selectedRegion?: string;
   voterData: VoterData;
-  step: 'select_region' | 'enter_national_id' | 'enter_polling_station_address' | 'review_data' | 'completed';
+  step: 'select_region' | 'enter_national_id' | 'enter_polling_station_name' | 'enter_polling_station_address' | 'review_data' | 'completed';
   lastUpdate: number;
 }
 
@@ -51,6 +52,15 @@ export function setNationalId(chatId: string | number, nationalId: string) {
   const key = String(chatId);
   const state = getConversationState(chatId);
   state.voterData.nationalId = nationalId;
+  state.step = 'enter_polling_station_name';
+  state.lastUpdate = Date.now();
+  conversationStates.set(key, state);
+}
+
+export function setPollingStationName(chatId: string | number, name: string) {
+  const key = String(chatId);
+  const state = getConversationState(chatId);
+  state.voterData.pollingStationName = name;
   state.step = 'enter_polling_station_address';
   state.lastUpdate = Date.now();
   conversationStates.set(key, state);
