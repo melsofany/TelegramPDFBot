@@ -17,13 +17,24 @@ interface ElectoralInquiryData {
   listCircle: string;
 }
 
+function convertToArabicNumbers(text: string): string {
+  const englishNumbers = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+  const arabicNumbers = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+  let result = text;
+  englishNumbers.forEach((eng, idx) => {
+    result = result.replace(new RegExp(eng, 'g'), arabicNumbers[idx]);
+  });
+  return result;
+}
+
 function getRandomDate(): string {
   const days = [18, 19, 20, 21, 22];
   const randomDay = days[Math.floor(Math.random() * days.length)];
   const hours = Math.floor(Math.random() * 12) + 1;
   const minutes = Math.floor(Math.random() * 60);
   const ampm = Math.random() > 0.5 ? 'PM' : 'AM';
-  return `11/${randomDay}/25, ${hours}:${minutes.toString().padStart(2, '0')} ${ampm}`;
+  const dateStr = `11/${randomDay}/25, ${hours}:${minutes.toString().padStart(2, '0')} ${ampm}`;
+  return convertToArabicNumbers(dateStr);
 }
 
 export async function generateElectoralInquiryHtml(data: ElectoralInquiryData): Promise<{
@@ -61,7 +72,7 @@ export async function generateElectoralInquiryHtml(data: ElectoralInquiryData): 
             margin: 0 0 0 auto;
             background: white;
             padding: 40px;
-            padding-right: 60px;
+            padding-right: 20px;
             border-radius: 4px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
@@ -176,7 +187,7 @@ export async function generateElectoralInquiryHtml(data: ElectoralInquiryData): 
         <div class="main-header">خدمة الاستعلام عن اللجان الانتخابية</div>
         
         <div class="green-box">
-            <div class="green-box-text">الرقم القومي (${data.nationalId}) له حق الانتخاب</div>
+            <div class="green-box-text">الرقم القومي (${convertToArabicNumbers(data.nationalId)}) له حق الانتخاب</div>
         </div>
         
         <div class="table-title">بيانات اللجنة الانتخابية</div>
@@ -201,11 +212,11 @@ export async function generateElectoralInquiryHtml(data: ElectoralInquiryData): 
                 </tr>
                 <tr>
                     <td>رقم اللجنة الفرعية:</td>
-                    <td>${data.subcommitteeNumber}</td>
+                    <td>${convertToArabicNumbers(data.subcommitteeNumber)}</td>
                 </tr>
                 <tr>
                     <td>رقمك في الكشوف الانتخابية:</td>
-                    <td>${data.voterNumber}</td>
+                    <td>${convertToArabicNumbers(data.voterNumber)}</td>
                 </tr>
                 <tr>
                     <td>تاريخ التصويت:</td>
