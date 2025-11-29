@@ -135,8 +135,8 @@ export async function generateElectoralInquiryPdf(data: ElectoralInquiryData): P
     });
 
     const tableStartY = greenBoxY - greenBoxHeight - 30;
-    const tableWidth = width - 100;
-    const tableX = 50;
+    const tableWidth = width - 80;
+    const tableX = 60;
     const headerHeight = 28;
     const rowHeight = 32;
     const numRows = 10;
