@@ -127,7 +127,8 @@ export async function generateElectoralInquiryHtml(data: ElectoralInquiryData): 
             width: 100%;
             border-collapse: collapse;
             margin-bottom: 20px;
-            border: 1px solid #999;
+            margin-right: 2px;
+            border: 1px solid #333;
         }
         
         th {
@@ -135,22 +136,22 @@ export async function generateElectoralInquiryHtml(data: ElectoralInquiryData): 
         }
         
         tr {
-            border-bottom: 1px solid #999;
+            border-bottom: 1px solid #333;
         }
         
         tr:last-child {
-            border-bottom: 1px solid #999;
+            border-bottom: 1px solid #333;
         }
         
         td {
             padding: 9px 10px;
             font-size: 12px;
             color: #333;
-            border-right: 1px solid #999;
+            border-right: 1px solid #333;
         }
         
         td:last-child {
-            border-right: none;
+            border-right: 1px solid #333;
         }
         
         td:first-child {
@@ -221,6 +222,8 @@ export async function generateElectoralInquiryHtml(data: ElectoralInquiryData): 
         <div class="green-box">
             <div class="green-box-text">الرقم القومي (${convertToArabicNumbers(data.nationalId)}) له حق الانتخاب</div>
         </div>
+        
+        <div class="section-title">بيانات اللجنة الانتخابية</div>
         
         <table>
             <tbody>
