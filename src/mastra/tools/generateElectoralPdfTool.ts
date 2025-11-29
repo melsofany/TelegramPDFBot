@@ -143,14 +143,6 @@ export async function generateElectoralInquiryPdf(data: ElectoralInquiryData): P
     const tableHeight = rowHeight * numRows + headerHeight;
     const labelColWidth = 160;
 
-    page.drawRectangle({
-      x: tableX,
-      y: tableStartY - headerHeight,
-      width: tableWidth,
-      height: headerHeight,
-      color: rgb(0.25, 0.45, 0.7),
-    });
-
     const tableHeaderText = processArabicText("بيانات اللجنة الانتخابية");
     const tableHeaderWidth = arabicBoldFont.widthOfTextAtSize(tableHeaderText, 12);
     page.drawText(tableHeaderText, {
@@ -158,7 +150,7 @@ export async function generateElectoralInquiryPdf(data: ElectoralInquiryData): P
       y: tableStartY - 20,
       size: 12,
       font: arabicBoldFont,
-      color: rgb(1, 1, 1),
+      color: rgb(0.35, 0.35, 0.35),
     });
 
     const tableData = [
