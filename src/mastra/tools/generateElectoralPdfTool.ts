@@ -69,8 +69,8 @@ export async function generateElectoralInquiryPdf(data: ElectoralInquiryData): P
     const pdfDoc = await PDFDocument.create();
     pdfDoc.registerFontkit(fontkit);
     
-    const fontPath = path.join(process.cwd(), 'fonts', 'Amiri-Regular.ttf');
-    const boldFontPath = path.join(process.cwd(), 'fonts', 'Amiri-Bold.ttf');
+    const fontPath = path.join(process.cwd(), 'fonts', 'Cairo-Regular.ttf');
+    const boldFontPath = path.join(process.cwd(), 'fonts', 'Cairo-Bold.ttf');
     
     let fontBytes: Buffer;
     let boldFontBytes: Buffer;
@@ -80,8 +80,8 @@ export async function generateElectoralInquiryPdf(data: ElectoralInquiryData): P
       boldFontBytes = fs.readFileSync(boldFontPath);
     } catch (fontError) {
       console.error("Font files not found, trying alternative path...");
-      const altFontPath = path.join('/home/runner/workspace', 'fonts', 'Amiri-Regular.ttf');
-      const altBoldFontPath = path.join('/home/runner/workspace', 'fonts', 'Amiri-Bold.ttf');
+      const altFontPath = path.join('/home/runner/workspace', 'fonts', 'Cairo-Regular.ttf');
+      const altBoldFontPath = path.join('/home/runner/workspace', 'fonts', 'Cairo-Bold.ttf');
       fontBytes = fs.readFileSync(altFontPath);
       boldFontBytes = fs.readFileSync(altBoldFontPath);
     }
