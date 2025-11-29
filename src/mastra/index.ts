@@ -132,7 +132,20 @@ async function handleTelegramMessage(mastra: Mastra, chatId: number, message: st
       await sendTelegramMessage(
         botToken,
         chatId,
-        `مرحباً بك في خدمة الاستعلام عن اللجان الانتخابية! 🗳️\n\nاختر المركز:\n1️⃣ مركز طما\n2️⃣ مركز طهطا\n3️⃣ قسم طهطا\n\nأرسل رقم الاختيار أو اسم المركز.`
+        `مرحباً بك في خدمة الاستعلام عن اللجان الانتخابية! 🗳️\n\nاختر المركز:`,
+        {
+          inline_keyboard: [
+            [
+              { text: "مركز طما", callback_data: "select_region_tama" }
+            ],
+            [
+              { text: "مركز طهطا", callback_data: "select_region_tahta" }
+            ],
+            [
+              { text: "قسم طهطا", callback_data: "select_region_district_tahta" }
+            ]
+          ]
+        }
       );
       return;
     }
@@ -391,7 +404,32 @@ async function handleTelegramCallback(mastra: Mastra, chatId: number, callbackDa
       }
     );
 
-    if (callbackData === "confirm_data") {
+    // Handle region selection
+    if (callbackData === "select_region_tama") {
+      setSelectedRegion(chatId, "مركز طما");
+      logger?.info("📍 Region selected: مركز طما");
+      await sendTelegramMessage(
+        botToken,
+        chatId,
+        `✅ تم اختيار مركز طما\n\n📝 الرجاء إدخال الرقم القومي (14 رقم):`
+      );
+    } else if (callbackData === "select_region_tahta") {
+      setSelectedRegion(chatId, "مركز طهطا");
+      logger?.info("📍 Region selected: مركز طهطا");
+      await sendTelegramMessage(
+        botToken,
+        chatId,
+        `✅ تم اختيار مركز طهطا\n\n📝 الرجاء إدخال الرقم القومي (14 رقم):`
+      );
+    } else if (callbackData === "select_region_district_tahta") {
+      setSelectedRegion(chatId, "قسم طهطا");
+      logger?.info("📍 Region selected: قسم طهطا");
+      await sendTelegramMessage(
+        botToken,
+        chatId,
+        `✅ تم اختيار قسم طهطا\n\n📝 الرجاء إدخال الرقم القومي (14 رقم):`
+      );
+    } else if (callbackData === "confirm_data") {
       await generateAndSendPdf(mastra, chatId);
     } else if (callbackData === "cancel_data") {
       resetConversation(chatId);
