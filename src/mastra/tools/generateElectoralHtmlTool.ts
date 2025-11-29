@@ -81,22 +81,21 @@ export async function generateElectoralInquiryHtml(data: ElectoralInquiryData): 
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
-            margin-bottom: 20px;
-            padding-bottom: 10px;
-            border-bottom: 1px solid #ddd;
+            margin-bottom: 15px;
+            padding-bottom: 0;
         }
         
         .header-title {
             text-align: center;
             flex: 1;
-            font-size: 14px;
+            font-size: 10px;
             color: #333;
             font-weight: 500;
         }
         
         .header-date {
             text-align: left;
-            font-size: 11px;
+            font-size: 9px;
             color: #666;
             white-space: nowrap;
         }
@@ -128,6 +127,7 @@ export async function generateElectoralInquiryHtml(data: ElectoralInquiryData): 
             width: 100%;
             border-collapse: collapse;
             margin-bottom: 20px;
+            border: 1px solid #999;
         }
         
         th {
@@ -135,14 +135,22 @@ export async function generateElectoralInquiryHtml(data: ElectoralInquiryData): 
         }
         
         tr {
-            border-bottom: 1px solid #d0d0d0;
+            border-bottom: 1px solid #999;
+        }
+        
+        tr:last-child {
+            border-bottom: 1px solid #999;
         }
         
         td {
             padding: 9px 10px;
             font-size: 12px;
             color: #333;
-            border: none;
+            border-right: 1px solid #999;
+        }
+        
+        td:last-child {
+            border-right: none;
         }
         
         td:first-child {
@@ -167,8 +175,7 @@ export async function generateElectoralInquiryHtml(data: ElectoralInquiryData): 
             justify-content: space-between;
             font-size: 10px;
             color: #666;
-            border-top: 1px solid #d0d0d0;
-            padding-top: 10px;
+            padding-top: 0;
         }
         
         .footer-right {
@@ -214,8 +221,6 @@ export async function generateElectoralInquiryHtml(data: ElectoralInquiryData): 
         <div class="green-box">
             <div class="green-box-text">الرقم القومي (${convertToArabicNumbers(data.nationalId)}) له حق الانتخاب</div>
         </div>
-        
-        <div class="section-title">بيانات اللجنة الانتخابية</div>
         
         <table>
             <tbody>

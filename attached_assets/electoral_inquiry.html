@@ -33,22 +33,21 @@
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
-            margin-bottom: 20px;
-            padding-bottom: 10px;
-            border-bottom: 1px solid #ddd;
+            margin-bottom: 15px;
+            padding-bottom: 0;
         }
         
         .header-title {
             text-align: center;
             flex: 1;
-            font-size: 14px;
+            font-size: 10px;
             color: #333;
             font-weight: 500;
         }
         
         .header-date {
             text-align: left;
-            font-size: 11px;
+            font-size: 9px;
             color: #666;
             white-space: nowrap;
         }
@@ -80,6 +79,7 @@
             width: 100%;
             border-collapse: collapse;
             margin-bottom: 20px;
+            border: 1px solid #999;
         }
         
         th {
@@ -87,14 +87,22 @@
         }
         
         tr {
-            border-bottom: 1px solid #d0d0d0;
+            border-bottom: 1px solid #999;
+        }
+        
+        tr:last-child {
+            border-bottom: 1px solid #999;
         }
         
         td {
             padding: 9px 10px;
             font-size: 12px;
             color: #333;
-            border: none;
+            border-right: 1px solid #999;
+        }
+        
+        td:last-child {
+            border-right: none;
         }
         
         td:first-child {
@@ -119,8 +127,7 @@
             justify-content: space-between;
             font-size: 10px;
             color: #666;
-            border-top: 1px solid #d0d0d0;
-            padding-top: 10px;
+            padding-top: 0;
         }
         
         .footer-right {
@@ -160,14 +167,12 @@
     <div class="page">
         <div class="header-top">
             <div class="header-title">خدمة الاستعلام عن اللجان الانتخابية</div>
-            <div class="header-date">١١/٢٢/٢٥, ٩:١٧ PM</div>
+            <div class="header-date">١١/٢٢/٢٥, ١١:١١ PM</div>
         </div>
         
         <div class="green-box">
             <div class="green-box-text">الرقم القومي (٢٩٤٠٧١١٣٣٠٠١٧٧) له حق الانتخاب</div>
         </div>
-        
-        <div class="section-title">بيانات اللجنة الانتخابية</div>
         
         <table>
             <tbody>
