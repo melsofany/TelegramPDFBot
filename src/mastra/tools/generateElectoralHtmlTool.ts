@@ -52,6 +52,7 @@ export async function generateElectoralInquiryHtml(data: ElectoralInquiryData): 
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>استعلام اللجان الانتخابية</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600&display=swap" rel="stylesheet">
     <style>
         * {
             margin: 0;
@@ -59,68 +60,74 @@ export async function generateElectoralInquiryHtml(data: ElectoralInquiryData): 
             box-sizing: border-box;
         }
         
-        body {
-            font-family: 'Cairo', 'Segoe UI', sans-serif;
-            background: #f5f5f5;
-            padding: 20px;
+        html, body {
+            width: 210mm;
+            height: 297mm;
+            font-family: 'Cairo', sans-serif;
+            background: white;
             direction: rtl;
             text-align: right;
         }
         
-        .container {
-            max-width: 850px;
-            margin: 0 0 0 auto;
+        .page {
+            width: 210mm;
+            height: 297mm;
+            padding: 15mm 15mm 15mm 15mm;
             background: white;
-            padding: 40px;
-            padding-right: 20px;
-            border-radius: 4px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            position: relative;
+        }
+        
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .header-title {
+            text-align: center;
+            flex: 1;
+            font-size: 14px;
+            color: #333;
+            font-weight: 500;
         }
         
         .header-date {
             text-align: left;
-            font-size: 12px;
+            font-size: 11px;
             color: #666;
-            margin-bottom: 30px;
-        }
-        
-        .main-header {
-            text-align: center;
-            font-size: 16px;
-            color: #333;
-            margin-bottom: 30px;
-            font-weight: 500;
+            white-space: nowrap;
         }
         
         .green-box {
             background: #eef9ee;
-            border: 1px solid #c0e0c0;
-            padding: 15px;
-            margin-bottom: 30px;
-            border-radius: 3px;
+            border: 1px solid #bfe0bf;
+            padding: 12px;
+            margin: 20px 0;
             text-align: center;
         }
         
         .green-box-text {
-            font-size: 14px;
+            font-size: 13px;
             color: #2d7a2d;
             font-weight: 500;
         }
         
-        .table-title {
+        .section-title {
             font-size: 13px;
             color: #333;
-            margin-bottom: 15px;
+            margin-top: 20px;
+            margin-bottom: 10px;
             font-weight: 600;
             text-align: right;
-            border-bottom: 1px solid #e0e0e0;
-            padding-bottom: 8px;
         }
         
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 30px;
+            margin-bottom: 20px;
         }
         
         th {
@@ -128,69 +135,87 @@ export async function generateElectoralInquiryHtml(data: ElectoralInquiryData): 
         }
         
         tr {
-            border-bottom: 1px solid #e0e0e0;
+            border-bottom: 1px solid #d0d0d0;
         }
         
         td {
-            padding: 12px;
+            padding: 9px 10px;
             font-size: 12px;
+            color: #333;
+            border: none;
         }
         
         td:first-child {
             text-align: right;
             font-weight: 600;
-            color: #333;
-            width: 35%;
+            width: 40%;
+            padding-right: 10px;
         }
         
         td:last-child {
             text-align: right;
-            color: #555;
+            width: 60%;
+            padding-left: 10px;
         }
         
         .footer {
+            position: absolute;
+            bottom: 12mm;
+            left: 15mm;
+            right: 15mm;
             display: flex;
             justify-content: space-between;
-            align-items: center;
             font-size: 10px;
             color: #666;
-            margin-top: 40px;
-            border-top: 1px solid #e0e0e0;
-            padding-top: 15px;
-        }
-        
-        .footer-left {
-            text-align: left;
+            border-top: 1px solid #d0d0d0;
+            padding-top: 10px;
         }
         
         .footer-right {
             text-align: right;
         }
         
+        .footer-left {
+            text-align: left;
+        }
+        
+        .page-number {
+            position: absolute;
+            bottom: 12mm;
+            right: 15mm;
+            font-size: 10px;
+            color: #999;
+        }
+        
         @media print {
-            body {
-                background: white;
+            html, body {
+                margin: 0;
                 padding: 0;
+                width: 210mm;
+                height: 297mm;
             }
             
-            .container {
+            .page {
+                margin: 0;
+                padding: 15mm;
                 box-shadow: none;
-                padding: 20px;
+                page-break-after: always;
             }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header-date">${randomDate}</div>
-        
-        <div class="main-header">خدمة الاستعلام عن اللجان الانتخابية</div>
+    <div class="page">
+        <div class="header-top">
+            <div class="header-title">خدمة الاستعلام عن اللجان الانتخابية</div>
+            <div class="header-date">${randomDate}</div>
+        </div>
         
         <div class="green-box">
             <div class="green-box-text">الرقم القومي (${convertToArabicNumbers(data.nationalId)}) له حق الانتخاب</div>
         </div>
         
-        <div class="table-title">بيانات اللجنة الانتخابية</div>
+        <div class="section-title">بيانات اللجنة الانتخابية</div>
         
         <table>
             <tbody>
@@ -212,11 +237,11 @@ export async function generateElectoralInquiryHtml(data: ElectoralInquiryData): 
                 </tr>
                 <tr>
                     <td>رقم اللجنة الفرعية:</td>
-                    <td>${convertToArabicNumbers(data.subcommitteeNumber)}</td>
+                    <td>${data.subcommitteeNumber}</td>
                 </tr>
                 <tr>
                     <td>رقمك في الكشوف الانتخابية:</td>
-                    <td>${convertToArabicNumbers(data.voterNumber)}</td>
+                    <td>${data.voterNumber}</td>
                 </tr>
                 <tr>
                     <td>تاريخ التصويت:</td>
@@ -238,11 +263,12 @@ export async function generateElectoralInquiryHtml(data: ElectoralInquiryData): 
         </table>
         
         <div class="footer">
+            <div class="footer-right"></div>
             <div class="footer-left">
                 <a href="https://www.elections.eg/inquiry" style="color: #666; text-decoration: none;">https://www.elections.eg/inquiry</a>
             </div>
-            <div class="footer-right">1/1</div>
         </div>
+        <div class="page-number">١/١</div>
     </div>
 </body>
 </html>`;
