@@ -58,9 +58,10 @@ export async function generateElectoralInquiryHtml(data: ElectoralInquiryData): 
         
         .container {
             max-width: 850px;
-            margin: 0 auto;
+            margin: 0 0 0 auto;
             background: white;
             padding: 40px;
+            padding-right: 60px;
             border-radius: 4px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
