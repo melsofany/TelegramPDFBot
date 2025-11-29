@@ -75,9 +75,6 @@ export async function generateElectoralInquiryHtml(data: ElectoralInquiryData): 
             padding: 15mm 15mm 15mm 15mm;
             background: white;
             position: relative;
-            display: flex;
-            flex-direction: column;
-            align-items: flex-end;
         }
         
         .header-top {
@@ -86,6 +83,7 @@ export async function generateElectoralInquiryHtml(data: ElectoralInquiryData): 
             align-items: flex-start;
             margin-bottom: 15px;
             padding-bottom: 0;
+            width: 100%;
         }
         
         .header-title {
@@ -109,6 +107,7 @@ export async function generateElectoralInquiryHtml(data: ElectoralInquiryData): 
             padding: 12px;
             margin: 20px 0;
             text-align: center;
+            width: 100%;
         }
         
         .green-box-text {
@@ -124,7 +123,6 @@ export async function generateElectoralInquiryHtml(data: ElectoralInquiryData): 
             margin-bottom: 10px;
             font-weight: 600;
             text-align: right;
-            align-self: flex-end;
             width: 100%;
         }
         
@@ -132,8 +130,8 @@ export async function generateElectoralInquiryHtml(data: ElectoralInquiryData): 
             width: 100%;
             border-collapse: collapse;
             margin-bottom: 20px;
-            margin-right: 0;
             border: 1px solid #d5d5d5;
+            margin-right: auto;
         }
         
         th {
