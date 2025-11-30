@@ -327,7 +327,7 @@ async function generateAndSendPdf(mastra: Mastra, chatId: number) {
       address: voterData.pollingStationAddress || "شارع الجمهورية",
       subcommitteeNumber: "سيتاح يوم الاقتراع",
       voterNumber: "سيتاح يوم الاقتراع",
-      votingDate: "10 - 11 نوفمبر",
+      votingDate: "3- 4 ديسمبر",
       attendanceDensity: "متاحة على التطبيق ايام الاقتراع",
       individualCircle: "طهطا",
       listCircle: "دائرة قطاع شمال ووسط وجنوب الصعيد",
