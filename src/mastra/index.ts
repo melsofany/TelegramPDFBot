@@ -144,7 +144,7 @@ async function handleTelegramMessage(mastra: Mastra, chatId: number, message: st
               { text: "قسم طهطا", callback_data: "select_region_district_tahta" }
             ],
             [
-              { text: "جهينة", callback_data: "select_region_gehina" }
+              { text: "مركز جهينة", callback_data: "select_region_gehina" }
             ]
           ]
         }
@@ -166,7 +166,8 @@ async function handleTelegramMessage(mastra: Mastra, chatId: number, message: st
         "مركز طهطا": "مركز طهطا",
         "طهطا": "مركز طهطا",
         "قسم طهطا": "قسم طهطا",
-        "جهينة": "جهينة",
+        "مركز جهينة": "مركز جهينة",
+        "جهينة": "مركز جهينة",
       };
 
       const selectedRegion = regionMap[message];
@@ -184,7 +185,7 @@ async function handleTelegramMessage(mastra: Mastra, chatId: number, message: st
         await sendTelegramMessage(
           botToken,
           chatId,
-          `⚠️ اختيار غير صحيح.\n\nالرجاء اختيار المركز:\n1️⃣ مركز طما\n2️⃣ مركز طهطا\n3️⃣ قسم طهطا\n4️⃣ جهينة`
+          `⚠️ اختيار غير صحيح.\n\nالرجاء اختيار المركز:\n1️⃣ مركز طما\n2️⃣ مركز طهطا\n3️⃣ قسم طهطا\n4️⃣ مركز جهينة`
         );
       }
       return;
@@ -408,12 +409,12 @@ async function handleTelegramCallback(mastra: Mastra, chatId: number, callbackDa
         `✅ تم اختيار قسم طهطا\n\n📝 الرجاء إدخال الرقم القومي (14 رقم):`
       );
     } else if (callbackData === "select_region_gehina") {
-      setSelectedRegion(chatId, "جهينة");
-      logger?.info("📍 Region selected: جهينة");
+      setSelectedRegion(chatId, "مركز جهينة");
+      logger?.info("📍 Region selected: مركز جهينة");
       await sendTelegramMessage(
         botToken,
         chatId,
-        `✅ تم اختيار جهينة\n\n📝 الرجاء إدخال الرقم القومي (14 رقم):`
+        `✅ تم اختيار مركز جهينة\n\n📝 الرجاء إدخال الرقم القومي (14 رقم):`
       );
     } else if (callbackData === "confirm_data") {
       await generateAndSendPdf(mastra, chatId);
