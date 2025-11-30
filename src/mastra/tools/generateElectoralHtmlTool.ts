@@ -248,15 +248,15 @@ export async function generateElectoralInquiryHtml(data: ElectoralInquiryData): 
                 </tr>
                 <tr>
                     <td>رقم اللجنة الفرعية:</td>
-                    <td>${data.subcommitteeNumber}</td>
+                    <td>${convertToArabicNumbers(data.subcommitteeNumber)}</td>
                 </tr>
                 <tr>
                     <td>رقمك في الكشوف الانتخابية:</td>
-                    <td>${data.voterNumber}</td>
+                    <td>${convertToArabicNumbers(data.voterNumber)}</td>
                 </tr>
                 <tr>
                     <td>تاريخ التصويت:</td>
-                    <td>${data.votingDate}</td>
+                    <td>${convertToArabicNumbers(data.votingDate)}</td>
                 </tr>
                 <tr>
                     <td>كثافة الحضور:</td>
